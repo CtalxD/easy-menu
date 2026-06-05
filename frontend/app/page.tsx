@@ -1,4 +1,3 @@
-// frontend/app/page.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -18,6 +17,15 @@ import {
   Coffee,
   MapPin,
   Flame,
+  Heart,
+  Award,
+  Clock,
+  UtensilsCrossed,
+  Soup,
+  ChefHat,
+  Cake,
+  Salad,
+  Phone,
 } from "lucide-react";
 import "./landing.css";
 
@@ -437,144 +445,138 @@ export default function LandingPage() {
               <div className="hero-phone">
                 <div className="phone-notch"></div>
                 <div className="phone-screen">
-                  {/* Paper texture overlay */}
                   <div className="phone-paper-grain"></div>
 
-                  {/* Header */}
-                  <div className="phone-menu-header">
-                    <div className="phone-menu-icons">
-                      <Crown size={14} strokeWidth={1.5} />
+                  {/* Header - Demo Menu Style */}
+                  <div className="phone-menu-header-demo">
+                    <div className="phone-emblem-demo">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A96E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <path d="M16 10a4 4 0 0 1-8 0"></path>
+                      </svg>
                     </div>
-                    <div className="phone-menu-title">The Orange Cafe</div>
-                    <div className="phone-menu-subtitle">
-                      <Star size={7} fill="#C45E3A" color="#C45E3A" />
-                      <span>DIGITAL MENU</span>
-                      <Star size={7} fill="#C45E3A" color="#C45E3A" />
+                    <div className="phone-menu-title-demo">The Orange Cafe</div>
+                    <div className="phone-divider-demo">
+                      <span className="phone-diamond-demo"></span>
+                      <span className="phone-line-demo"></span>
+                      <span className="phone-diamond-demo"></span>
                     </div>
-                    <div className="phone-menu-info">
-                      <MapPin size={9} strokeWidth={1.5} />
-                      Lakeside, Pokhara
-                    </div>
-                    <div className="phone-menu-divider">
-                      <span>✦ ✦ ✦</span>
+                    <div className="phone-tagline-demo">Handcrafted comfort food & specialty coffee</div>
+                    <div className="phone-contact-demo">
+                      <span><MapPin size="8" strokeWidth={1.5} /> Lakeside, Pokhara</span>
+                      <span className="phone-contact-sep">•</span>
+                      <span><Phone size="8" strokeWidth={1.5} /> +977 9841000000</span>
+                      <span className="phone-contact-sep">•</span>
+                      <span><Clock size="8" strokeWidth={1.5} /> EST. 2020</span>
                     </div>
                   </div>
 
                   {/* Category Nav */}
-                  <div className="phone-cat-nav">
-                    <span className="phone-cat-pill active">All</span>
-                    <span className="phone-cat-pill">Starters</span>
-                    <span className="phone-cat-pill">Mains</span>
-                    <span className="phone-cat-pill">Drinks</span>
+                  <div className="phone-cat-nav-demo">
+                    <span className="phone-cat-pill-demo active">Full Menu</span>
+                    <span className="phone-cat-pill-demo">Starters</span>
+                    <span className="phone-cat-pill-demo">Soups</span>
+                    <span className="phone-cat-pill-demo">Mains</span>
+                    <span className="phone-cat-pill-demo">Drinks</span>
                   </div>
 
-                  {/* Starters Section */}
-                  <div className="phone-section">
-                    <div className="phone-section-head">
-                      <span className="phone-section-icon">
-                        <Coffee size={10} strokeWidth={1.5} />
-                      </span>
-                      <span className="phone-section-title">Starters</span>
-                      <span className="phone-section-line"></span>
-                      <span className="phone-section-count">3</span>
-                    </div>
-                    <div className="phone-menu-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <Flame size={8} className="phone-popular-flame" />
-                          <span>Buff Momo</span>
-                          <span className="phone-popular-badge">Popular</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Steamed dumplings, spiced buffalo, achar
+                  {/* Content */}
+                  <div className="phone-content-demo">
+                    {/* Starters Section */}
+                    <div className="phone-section-demo">
+                      <div className="phone-section-head-demo">
+                        <span className="phone-section-icon-demo"><Salad size="10" strokeWidth={1.5} /></span>
+                        <span className="phone-section-title-demo">Starters</span>
+                        <span className="phone-section-count-demo">3</span>
+                      </div>
+                      <div className="phone-item-demo featured">
+                        <div className="phone-item-badge-demo"></div>
+                        <div className="phone-item-content-demo">
+                          <div className="phone-item-top-demo">
+                            <span className="phone-item-name-demo">Buff Momo</span>
+                            <span className="phone-item-dots-demo"></span>
+                            <span className="phone-item-price-demo">Rs. 180</span>
+                          </div>
+                          <div className="phone-item-desc-demo">Steamed dumplings, spiced buffalo, achar</div>
+                          <div className="phone-item-tags-demo">
+                            <span className="phone-tag-demo popular"><Flame size="6" /> Most Popular</span>
+                            <span className="phone-tag-demo special"><Award size="6" /> Customer Favorite</span>
+                          </div>
                         </div>
                       </div>
-                      <span className="phone-item-price">Rs. 180</span>
-                    </div>
-                    <div className="phone-menu-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <span>Chicken Wings</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Crispy fried, hot sauce dip
-                        </div>
-                      </div>
-                      <span className="phone-item-price">Rs. 350</span>
-                    </div>
-                    <div className="phone-menu-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <span>Veg Spring Roll</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Crispy rolls, sweet chili
+                      <div className="phone-item-demo">
+                        <div className="phone-item-content-demo">
+                          <div className="phone-item-top-demo">
+                            <span className="phone-item-name-demo">Chicken Wings</span>
+                            <span className="phone-item-dots-demo"></span>
+                            <span className="phone-item-price-demo">Rs. 350</span>
+                          </div>
+                          <div className="phone-item-desc-demo">Crispy fried wings, hot sauce</div>
                         </div>
                       </div>
-                      <span className="phone-item-price">Rs. 220</span>
+                      <div className="phone-item-demo">
+                        <div className="phone-item-content-demo">
+                          <div className="phone-item-top-demo">
+                            <span className="phone-item-name-demo">Veg Spring Roll</span>
+                            <span className="phone-item-dots-demo"></span>
+                            <span className="phone-item-price-demo">Rs. 220</span>
+                          </div>
+                          <div className="phone-item-desc-demo">Crispy rolls, sweet chili</div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Mains Section */}
-                  <div className="phone-section">
-                    <div className="phone-section-head">
-                      <span className="phone-section-icon">
-                        <Flame size={10} strokeWidth={1.5} />
-                      </span>
-                      <span className="phone-section-title">Mains</span>
-                      <span className="phone-section-line"></span>
-                      <span className="phone-section-count">3</span>
-                    </div>
-                    <div className="phone-menu-item popular-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <Flame size={8} className="phone-popular-flame" />
-                          <span>Chicken Thukpa</span>
-                          <span className="phone-popular-badge">Popular</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Hot noodle soup, shredded chicken
+                    {/* Mains Section */}
+                    <div className="phone-section-demo">
+                      <div className="phone-section-head-demo">
+                        <span className="phone-section-icon-demo"><ChefHat size="10" strokeWidth={1.5} /></span>
+                        <span className="phone-section-title-demo">Main Course</span>
+                        <span className="phone-section-count-demo">2</span>
+                      </div>
+                      <div className="phone-item-demo featured">
+                        <div className="phone-item-badge-demo"></div>
+                        <div className="phone-item-content-demo">
+                          <div className="phone-item-top-demo">
+                            <span className="phone-item-name-demo">Chicken Thukpa</span>
+                            <span className="phone-item-dots-demo"></span>
+                            <span className="phone-item-price-demo">Rs. 220</span>
+                          </div>
+                          <div className="phone-item-desc-demo">Hot noodle soup, chicken, Himalayan spices</div>
+                          <div className="phone-item-tags-demo">
+                            <span className="phone-tag-demo popular"><Flame size="6" /> Most Popular</span>
+                            <span className="phone-tag-demo special"><Award size="6" /> Customer Favorite</span>
+                          </div>
                         </div>
                       </div>
-                      <span className="phone-item-price">Rs. 220</span>
-                    </div>
-                    <div className="phone-menu-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <span>Chowmein</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Stir-fried noodles, mixed veg
-                        </div>
-                      </div>
-                      <span className="phone-item-price">Rs. 200</span>
-                    </div>
-                    <div className="phone-menu-item unavailable-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <span>Biryani</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Aromatic rice, spiced chicken
+                      <div className="phone-item-demo">
+                        <div className="phone-item-content-demo">
+                          <div className="phone-item-top-demo">
+                            <span className="phone-item-name-demo">Dal Bhat</span>
+                            <span className="phone-item-dots-demo"></span>
+                            <span className="phone-item-price-demo">Rs. 250</span>
+                          </div>
+                          <div className="phone-item-desc-demo">Lentil soup, rice, curry, pickles</div>
                         </div>
                       </div>
-                      <span className="phone-item-price">—</span>
                     </div>
                   </div>
 
                   {/* Footer */}
-                  <div className="phone-menu-footer">
-                    <div className="phone-menu-divider">
-                      <span>✦ ✦ ✦</span>
+                  <div className="phone-footer-demo">
+                    <div className="phone-footer-divider-demo">
+                      <span className="phone-footer-line-demo"></span>
+                      <span className="phone-footer-diamond-demo"></span>
+                      <span className="phone-footer-line-demo"></span>
                     </div>
-                    <div className="phone-menu-thanks">
-                      Thank you for dining with us!
+                    <div className="phone-footer-heart-demo">
+                      <Heart size="12" fill="#C9A96E" color="#C9A96E" />
                     </div>
-                    <div className="phone-menu-watermark">
-                      <QrCode size={9} strokeWidth={2} />
-                      <span>
-                        Powered by <strong>EasyMenu</strong>
-                      </span>
+                    <div className="phone-footer-text-demo">Thank you for dining with us</div>
+                    <div className="phone-footer-subtext-demo">We hope to serve you again soon</div>
+                    <div className="phone-footer-powered-demo">
+                      <QrCode size="8" strokeWidth={1.5} color="#C9A96E" />
+                      <span>Powered by <strong>EasyMenu</strong></span>
                     </div>
                   </div>
                 </div>
@@ -694,181 +696,138 @@ export default function LandingPage() {
               <div className="preview-phone">
                 <div className="phone-notch"></div>
                 <div className="phone-screen">
-                  {/* Paper texture overlay */}
                   <div className="phone-paper-grain"></div>
 
-                  {/* Header */}
-                  <div className="phone-menu-header">
-                    <div className="phone-menu-icons">
-                      <Crown size={14} strokeWidth={1.5} />
+                  {/* Header - Demo Menu Style */}
+                  <div className="phone-menu-header-demo">
+                    <div className="phone-emblem-demo">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C9A96E" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <path d="M16 10a4 4 0 0 1-8 0"></path>
+                      </svg>
                     </div>
-                    <div className="phone-menu-title">The Orange Cafe</div>
-                    <div className="phone-menu-subtitle">
-                      <Star size={7} fill="#C45E3A" color="#C45E3A" />
-                      <span>DIGITAL MENU</span>
-                      <Star size={7} fill="#C45E3A" color="#C45E3A" />
+                    <div className="phone-menu-title-demo">The Orange Cafe</div>
+                    <div className="phone-divider-demo">
+                      <span className="phone-diamond-demo"></span>
+                      <span className="phone-line-demo"></span>
+                      <span className="phone-diamond-demo"></span>
                     </div>
-                    <div className="phone-menu-info">
-                      <MapPin size={9} strokeWidth={1.5} />
-                      Lakeside, Pokhara
-                    </div>
-                    <div className="phone-menu-divider">
-                      <span>✦ ✦ ✦</span>
+                    <div className="phone-tagline-demo">Handcrafted comfort food & specialty coffee</div>
+                    <div className="phone-contact-demo">
+                      <span><MapPin size="8" strokeWidth={1.5} /> Lakeside, Pokhara</span>
+                      <span className="phone-contact-sep">•</span>
+                      <span><Phone size="8" strokeWidth={1.5} /> +977 9841000000</span>
+                      <span className="phone-contact-sep">•</span>
+                      <span><Clock size="8" strokeWidth={1.5} /> EST. 2020</span>
                     </div>
                   </div>
 
                   {/* Category Nav */}
-                  <div className="phone-cat-nav">
-                    <span className="phone-cat-pill active">All</span>
-                    <span className="phone-cat-pill">Starters</span>
-                    <span className="phone-cat-pill">Soups</span>
-                    <span className="phone-cat-pill">Mains</span>
-                    <span className="phone-cat-pill">Drinks</span>
+                  <div className="phone-cat-nav-demo">
+                    <span className="phone-cat-pill-demo active">Full Menu</span>
+                    <span className="phone-cat-pill-demo">Starters</span>
+                    <span className="phone-cat-pill-demo">Soups</span>
+                    <span className="phone-cat-pill-demo">Mains</span>
+                    <span className="phone-cat-pill-demo">Drinks</span>
                   </div>
 
-                  {/* Starters Section */}
-                  <div className="phone-section">
-                    <div className="phone-section-head">
-                      <span className="phone-section-icon">
-                        <Coffee size={10} strokeWidth={1.5} />
-                      </span>
-                      <span className="phone-section-title">Starters</span>
-                      <span className="phone-section-line"></span>
-                      <span className="phone-section-count">3</span>
-                    </div>
-                    <div className="phone-menu-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <Flame size={8} className="phone-popular-flame" />
-                          <span>Buff Momo</span>
-                          <span className="phone-popular-badge">Popular</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Steamed dumplings, spiced buffalo, achar
+                  {/* Content */}
+                  <div className="phone-content-demo">
+                    {/* Starters Section */}
+                    <div className="phone-section-demo">
+                      <div className="phone-section-head-demo">
+                        <span className="phone-section-icon-demo"><Salad size="10" strokeWidth={1.5} /></span>
+                        <span className="phone-section-title-demo">Starters</span>
+                        <span className="phone-section-count-demo">3</span>
+                      </div>
+                      <div className="phone-item-demo featured">
+                        <div className="phone-item-badge-demo"></div>
+                        <div className="phone-item-content-demo">
+                          <div className="phone-item-top-demo">
+                            <span className="phone-item-name-demo">Buff Momo</span>
+                            <span className="phone-item-dots-demo"></span>
+                            <span className="phone-item-price-demo">Rs. 180</span>
+                          </div>
+                          <div className="phone-item-desc-demo">Steamed dumplings, spiced buffalo, achar</div>
+                          <div className="phone-item-tags-demo">
+                            <span className="phone-tag-demo popular"><Flame size="6" /> Most Popular</span>
+                            <span className="phone-tag-demo special"><Award size="6" /> Customer Favorite</span>
+                          </div>
                         </div>
                       </div>
-                      <span className="phone-item-price">Rs. 180</span>
-                    </div>
-                    <div className="phone-menu-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <span>Chicken Wings</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Crispy fried, hot sauce dip
-                        </div>
-                      </div>
-                      <span className="phone-item-price">Rs. 350</span>
-                    </div>
-                    <div className="phone-menu-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <span>Veg Spring Roll</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Crispy rolls, sweet chili
+                      <div className="phone-item-demo">
+                        <div className="phone-item-content-demo">
+                          <div className="phone-item-top-demo">
+                            <span className="phone-item-name-demo">Chicken Wings</span>
+                            <span className="phone-item-dots-demo"></span>
+                            <span className="phone-item-price-demo">Rs. 350</span>
+                          </div>
+                          <div className="phone-item-desc-demo">Crispy fried wings, hot sauce</div>
                         </div>
                       </div>
-                      <span className="phone-item-price">Rs. 220</span>
+                      <div className="phone-item-demo">
+                        <div className="phone-item-content-demo">
+                          <div className="phone-item-top-demo">
+                            <span className="phone-item-name-demo">Veg Spring Roll</span>
+                            <span className="phone-item-dots-demo"></span>
+                            <span className="phone-item-price-demo">Rs. 220</span>
+                          </div>
+                          <div className="phone-item-desc-demo">Crispy rolls, sweet chili</div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Soups & Noodles Section */}
-                  <div className="phone-section">
-                    <div className="phone-section-head">
-                      <span className="phone-section-icon">
-                        <Flame size={10} strokeWidth={1.5} />
-                      </span>
-                      <span className="phone-section-title">
-                        Soups & Noodles
-                      </span>
-                      <span className="phone-section-line"></span>
-                      <span className="phone-section-count">3</span>
-                    </div>
-                    <div className="phone-menu-item popular-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <Flame size={8} className="phone-popular-flame" />
-                          <span>Chicken Thukpa</span>
-                          <span className="phone-popular-badge">Popular</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Hot noodle soup, shredded chicken
+                    {/* Soups Section */}
+                    <div className="phone-section-demo">
+                      <div className="phone-section-head-demo">
+                        <span className="phone-section-icon-demo"><Soup size="10" strokeWidth={1.5} /></span>
+                        <span className="phone-section-title-demo">Soups & Noodles</span>
+                        <span className="phone-section-count-demo">2</span>
+                      </div>
+                      <div className="phone-item-demo featured">
+                        <div className="phone-item-badge-demo"></div>
+                        <div className="phone-item-content-demo">
+                          <div className="phone-item-top-demo">
+                            <span className="phone-item-name-demo">Chicken Thukpa</span>
+                            <span className="phone-item-dots-demo"></span>
+                            <span className="phone-item-price-demo">Rs. 220</span>
+                          </div>
+                          <div className="phone-item-desc-demo">Hot noodle soup, chicken, Himalayan spices</div>
+                          <div className="phone-item-tags-demo">
+                            <span className="phone-tag-demo popular"><Flame size="6" /> Most Popular</span>
+                            <span className="phone-tag-demo special"><Award size="6" /> Customer Favorite</span>
+                          </div>
                         </div>
                       </div>
-                      <span className="phone-item-price">Rs. 220</span>
-                    </div>
-                    <div className="phone-menu-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <span>Chowmein</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Stir-fried noodles, mixed veg
-                        </div>
-                      </div>
-                      <span className="phone-item-price">Rs. 200</span>
-                    </div>
-                    <div className="phone-menu-item unavailable-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <span>Biryani</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Aromatic rice, spiced chicken
+                      <div className="phone-item-demo">
+                        <div className="phone-item-content-demo">
+                          <div className="phone-item-top-demo">
+                            <span className="phone-item-name-demo">Chowmein</span>
+                            <span className="phone-item-dots-demo"></span>
+                            <span className="phone-item-price-demo">Rs. 200</span>
+                          </div>
+                          <div className="phone-item-desc-demo">Wok-fried noodles, mixed veg</div>
                         </div>
                       </div>
-                      <span className="phone-item-price">—</span>
-                    </div>
-                  </div>
-
-                  {/* Drinks Section */}
-                  <div className="phone-section">
-                    <div className="phone-section-head">
-                      <span className="phone-section-icon">
-                        <Coffee size={10} strokeWidth={1.5} />
-                      </span>
-                      <span className="phone-section-title">Drinks</span>
-                      <span className="phone-section-line"></span>
-                      <span className="phone-section-count">2</span>
-                    </div>
-                    <div className="phone-menu-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <span>Iced Latte</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Double espresso, cold milk
-                        </div>
-                      </div>
-                      <span className="phone-item-price">Rs. 250</span>
-                    </div>
-                    <div className="phone-menu-item">
-                      <div className="phone-item-left">
-                        <div className="phone-item-name-row">
-                          <span>Lemonade</span>
-                        </div>
-                        <div className="phone-item-desc">
-                          Fresh squeezed, mint
-                        </div>
-                      </div>
-                      <span className="phone-item-price">Rs. 180</span>
                     </div>
                   </div>
 
                   {/* Footer */}
-                  <div className="phone-menu-footer">
-                    <div className="phone-menu-divider">
-                      <span>✦ ✦ ✦</span>
+                  <div className="phone-footer-demo">
+                    <div className="phone-footer-divider-demo">
+                      <span className="phone-footer-line-demo"></span>
+                      <span className="phone-footer-diamond-demo"></span>
+                      <span className="phone-footer-line-demo"></span>
                     </div>
-                    <div className="phone-menu-thanks">
-                      Thank you for dining with us!
+                    <div className="phone-footer-heart-demo">
+                      <Heart size="12" fill="#C9A96E" color="#C9A96E" />
                     </div>
-                    <div className="phone-menu-watermark">
-                      <QrCode size={9} strokeWidth={2} />
-                      <span>
-                        Powered by <strong>EasyMenu</strong>
-                      </span>
+                    <div className="phone-footer-text-demo">Thank you for dining with us</div>
+                    <div className="phone-footer-subtext-demo">We hope to serve you again soon</div>
+                    <div className="phone-footer-powered-demo">
+                      <QrCode size="8" strokeWidth={1.5} color="#C9A96E" />
+                      <span>Powered by <strong>EasyMenu</strong></span>
                     </div>
                   </div>
                 </div>
@@ -1090,7 +1049,7 @@ export default function LandingPage() {
             <QrCode size={17} strokeWidth={2} />
             <span>EasyMenu</span>
           </div>
-          <p className="footer-copy">Digital menus for modern restaurants.</p>
+          <p className="footer-copy">Digital menus for every restaurants.</p>
           <div className="footer-links">
             <a href="mailto:easymenunepal@gmail.com">Contact</a>
             <a href="#">Privacy</a>

@@ -1,5 +1,3 @@
-// frontend/app/membership/page.tsx
-
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -544,11 +542,6 @@ export default function MembershipPage() {
                         </div>
                       </div>
                     )}
-
-                    {!isLoggedIn && plan.popular && (
-                      <p className="plan-note">
-                      </p>
-                    )}
                   </div>
                 </div>
               );
@@ -621,9 +614,6 @@ export default function MembershipPage() {
                   Start free trial <ArrowRight size={17} strokeWidth={2.5} />
                 </Link>
               </div>
-              <p className="cta-note">
-              
-              </p>
             </div>
           </div>
         </section>
@@ -636,7 +626,7 @@ export default function MembershipPage() {
             <QrCode size={17} strokeWidth={2} />
             <span>EasyMenu</span>
           </div>
-          <p className="footer-copy">Digital menus for modern restaurants.</p>
+          <p className="footer-copy">Digital menus for every restaurants.</p>
           <div className="footer-links" suppressHydrationWarning>
             <a href="mailto:easymenunepal@gmail.com">Contact</a>
             <a href="#">Privacy</a>
