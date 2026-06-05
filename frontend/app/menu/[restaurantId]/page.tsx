@@ -1,20 +1,14 @@
-// frontend/app/menu/[restaurantId]/page.tsx
-
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
+import { useEffect, useState, useRef, useCallback } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 import {
-  Star,
   MapPin,
   Phone,
   Loader2,
   QrCode,
   Flame,
-  Crown,
   UtensilsCrossed,
-  Coffee,
   Soup,
   Salad,
   Cake,
@@ -28,6 +22,12 @@ import {
   ChefHat,
   Plus,
   ChevronDown,
+  Heart,
+  ChevronUp,
+  Coffee,
+  Award,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import "./menu.css";
 
@@ -119,7 +119,6 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 export default function PublicMenuPage() {
   const params = useParams();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const restaurantId = params.restaurantId as string;
 
   const [menuData, setMenuData] = useState<MenuData | null>(null);
@@ -128,12 +127,30 @@ export default function PublicMenuPage() {
   const [mounted, setMounted] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [hasWatermark, setHasWatermark] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [navScrolled, setNavScrolled] = useState(false);
   const [selectedLocation, setSelectedLocation] = useState<string>(
     searchParams.get("location") || ""
   );
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
+  const navContainerRef = useRef<HTMLDivElement>(null);
+  const navWrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
+    
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+      
+      if (navWrapperRef.current) {
+        const navTop = navWrapperRef.current.getBoundingClientRect().top;
+        setNavScrolled(navTop <= 0);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   useEffect(() => {
@@ -153,7 +170,7 @@ export default function PublicMenuPage() {
         }
         const data = await res.json();
         setMenuData(data);
-        if (data.restaurant.plan === "free" || !data.restaurant.plan) {
+        if (data.restaurant.plan === "free" || data.restaurant.plan === "FREE" || !data.restaurant.plan) {
           setHasWatermark(true);
         } else {
           setHasWatermark(false);
@@ -167,8 +184,55 @@ export default function PublicMenuPage() {
     fetchMenu();
   }, [restaurantId, selectedLocation]);
 
+  const checkArrows = useCallback(() => {
+    if (navContainerRef.current) {
+      const { scrollLeft, scrollWidth, clientWidth } = navContainerRef.current;
+      setShowLeftArrow(scrollLeft > 5);
+      setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 5);
+    }
+  }, []);
+
+  useEffect(() => {
+    const container = navContainerRef.current;
+    if (container) {
+      checkArrows();
+      container.addEventListener("scroll", checkArrows, { passive: true });
+      window.addEventListener("resize", checkArrows);
+      return () => {
+        container.removeEventListener("scroll", checkArrows);
+        window.removeEventListener("resize", checkArrows);
+      };
+    }
+  }, [menuData, checkArrows]);
+
   const handleLocationChange = (locationId: string) => {
     setSelectedLocation(locationId);
+  };
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const scrollNav = (direction: "left" | "right") => {
+    if (navContainerRef.current) {
+      const scrollAmount = 250;
+      const newScrollLeft = direction === "left" 
+        ? navContainerRef.current.scrollLeft - scrollAmount 
+        : navContainerRef.current.scrollLeft + scrollAmount;
+      
+      navContainerRef.current.scrollTo({
+        left: newScrollLeft,
+        behavior: "smooth",
+      });
+    }
+  };
+
+  const sortCategoryItems = (items: MenuItem[]): MenuItem[] => {
+    return [...items].sort((a, b) => {
+      if (a.popular && !b.popular) return -1;
+      if (!a.popular && b.popular) return 1;
+      return 0;
+    });
   };
 
   /* ===================================================================
@@ -180,7 +244,9 @@ export default function PublicMenuPage() {
   if (loading) {
     return (
       <div className="menu-loading">
-        <Loader2 size={36} strokeWidth={1.5} className="menu-spin" />
+        <div className="menu-loading-spinner">
+          <Loader2 size={36} strokeWidth={1.5} className="menu-spin" />
+        </div>
         <p>Preparing your menu...</p>
       </div>
     );
@@ -194,10 +260,11 @@ export default function PublicMenuPage() {
     return (
       <div className="menu-error">
         <div className="menu-error-card">
-          <QrCode size={32} strokeWidth={1.5} />
+          <div className="menu-error-icon">
+            <QrCode size={24} strokeWidth={1.5} />
+          </div>
           <h2>Menu Unavailable</h2>
           <p>{error || "This menu doesn't exist or has been removed."}</p>
-          <Link href="/">Go to EasyMenu</Link>
         </div>
       </div>
     );
@@ -216,7 +283,7 @@ export default function PublicMenuPage() {
       id: cat.id,
       name: cat.name,
       description: cat.description,
-      items: cat.items,
+      items: sortCategoryItems(cat.items),
     })),
     ...(menu.uncategorized.length > 0
       ? [
@@ -224,7 +291,7 @@ export default function PublicMenuPage() {
             id: "other",
             name: "Other Items",
             description: null,
-            items: menu.uncategorized,
+            items: sortCategoryItems(menu.uncategorized),
           },
         ]
       : []),
@@ -237,59 +304,84 @@ export default function PublicMenuPage() {
 
   const hasItems = allCategories.length > 0;
 
-  const selectedLocationName = selectedLocation
-    ? locations.find((l) => l.id === selectedLocation)?.name || "All Locations"
-    : "All Locations";
-
   /* ===================================================================
      RENDER
      =================================================================== */
 
   return (
     <div className="menu-root">
+      <div className="menu-ambient" />
+      
       <div className="menu-container">
-        <div className="menu-paper">
-          {/* Paper Effects */}
-          <div className="menu-paper-grain"></div>
-          <div className="menu-paper-stain"></div>
-          <div className="menu-paper-stain-2"></div>
-          <div className="menu-paper-fold"></div>
-
-          {/* ================================================================ */}
-          {/* HEADER                                                            */}
-          {/* ================================================================ */}
+        <div className="menu-card">
+          {/* Header */}
           <header className="menu-header">
-            <div className="menu-header-icons">
-              <Crown size={20} strokeWidth={1.5} />
+            <div className="menu-header-bg" />
+            <div className="menu-header-shine" />
+            <div className="menu-header-glow" />
+            
+            <div className="menu-emblem">
+              {restaurant.logo ? (
+                <img 
+                  src={restaurant.logo} 
+                  alt={restaurant.name} 
+                  className="menu-logo" 
+                />
+              ) : (
+                <div className="menu-monogram">
+                  <svg 
+                    width="24" 
+                    height="24" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="1.5" 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round"
+                  >
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                  </svg>
+                </div>
+              )}
             </div>
+
             <h1 className="menu-title">{restaurant.name}</h1>
-            <div className="menu-subtitle">
-              <Star size={10} fill="#C45E3A" color="#C45E3A" />
-              <span>DIGITAL MENU</span>
-              <Star size={10} fill="#C45E3A" color="#C45E3A" />
+            
+            <div className="menu-divider">
+              <span className="menu-divider-diamond" />
+              <span className="menu-divider-line" />
+              <span className="menu-divider-diamond" />
             </div>
-
-            {restaurant.address && (
-              <p className="menu-info">
-                <MapPin size={11} strokeWidth={1.5} />
-                {restaurant.address}
-              </p>
-            )}
-            {restaurant.phone && (
-              <p className="menu-info">
-                <Phone size={11} strokeWidth={1.5} />
-                {restaurant.phone}
-              </p>
-            )}
-
+            
             {restaurant.description && (
-              <p className="menu-desc">{restaurant.description}</p>
+              <p className="menu-tagline">{restaurant.description}</p>
+            )}
+            
+            {(restaurant.address || restaurant.phone) && (
+              <div className="menu-contact">
+                {restaurant.address && (
+                  <div className="menu-contact-item">
+                    <MapPin size={12} strokeWidth={1.5} />
+                    <span>{restaurant.address}</span>
+                  </div>
+                )}
+                {restaurant.phone && (
+                  <>
+                    {restaurant.address && <span className="menu-contact-separator">•</span>}
+                    <div className="menu-contact-item">
+                      <Phone size={12} strokeWidth={1.5} />
+                      <span>{restaurant.phone}</span>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
 
-            {/* Location Selector */}
             {showLocationSelector && (
               <div className="menu-location-selector">
-                <MapPin size={13} strokeWidth={1.5} />
+                <MapPin size={12} strokeWidth={1.5} />
                 <select
                   value={selectedLocation}
                   onChange={(e) => handleLocationChange(e.target.value)}
@@ -305,87 +397,113 @@ export default function PublicMenuPage() {
                 <ChevronDown size={12} strokeWidth={1.5} className="menu-location-chevron" />
               </div>
             )}
-
-            {/* Show selected location for paid plans */}
-            {isPaidPlan && selectedLocation && (
-              <p className="menu-location-label">
-                <MapPin size={10} strokeWidth={1.5} />
-                Showing menu for: <strong>{selectedLocationName}</strong>
-              </p>
-            )}
-
-            <div className="menu-header-line">
-              <span>✦ ✦ ✦</span>
-            </div>
           </header>
 
-          {/* ================================================================ */}
-          {/* CATEGORY NAVIGATION                                               */}
-          {/* ================================================================ */}
+          {/* Category Navigation */}
           {hasItems && allCategories.length > 1 && (
-            <nav className="menu-nav">
-              <button
-                className={`menu-nav-btn ${activeCategory === "all" ? "active" : ""}`}
-                onClick={() => setActiveCategory("all")}
-              >
-                <Flame size={12} strokeWidth={1.5} />
-                <span>Full Menu</span>
-              </button>
-              {allCategories.map((cat) => (
-                <button
-                  key={cat.id}
-                  className={`menu-nav-btn ${activeCategory === cat.name ? "active" : ""}`}
-                  onClick={() => setActiveCategory(cat.name)}
+            <div 
+              ref={navWrapperRef}
+              className={`menu-nav-wrapper ${navScrolled ? "menu-nav-shadow" : ""}`}
+            >
+              {showLeftArrow && (
+                <button 
+                  className="menu-nav-arrow menu-nav-arrow-left"
+                  onClick={() => scrollNav("left")}
+                  aria-label="Scroll categories left"
                 >
-                  {getCategoryIcon(cat.name)}
-                  <span>{cat.name}</span>
+                  <ChevronLeft size={18} strokeWidth={2} />
                 </button>
-              ))}
-            </nav>
+              )}
+              
+              <div 
+                ref={navContainerRef}
+                className="menu-nav"
+              >
+                <button
+                  className={`menu-nav-btn ${activeCategory === "all" ? "active" : ""}`}
+                  onClick={() => setActiveCategory("all")}
+                >
+                  <UtensilsCrossed size={14} strokeWidth={1.5} />
+                  <span>Full Menu</span>
+                </button>
+                {allCategories.map((cat) => (
+                  <button
+                    key={cat.id}
+                    className={`menu-nav-btn ${activeCategory === cat.name ? "active" : ""}`}
+                    onClick={() => setActiveCategory(cat.name)}
+                  >
+                    {getCategoryIcon(cat.name)}
+                    <span>{cat.name}</span>
+                  </button>
+                ))}
+              </div>
+
+              {showRightArrow && (
+                <button 
+                  className="menu-nav-arrow menu-nav-arrow-right"
+                  onClick={() => scrollNav("right")}
+                  aria-label="Scroll categories right"
+                >
+                  <ChevronRight size={18} strokeWidth={2} />
+                </button>
+              )}
+            </div>
           )}
 
-          {/* ================================================================ */}
-          {/* MENU CONTENT                                                      */}
-          {/* ================================================================ */}
-          <main className="menu-body">
+          {/* Menu Content */}
+          <div className="menu-content">
             {hasItems ? (
               filteredCategories.map((cat) => (
                 <section key={cat.id} className="menu-section">
-                  <div className="menu-section-head">
+                  <div className="menu-section-header">
                     <div className="menu-section-icon">
                       {getCategoryIcon(cat.name)}
                     </div>
-                    <h2 className="menu-section-title">{cat.name}</h2>
-                    <div className="menu-section-line"></div>
-                    <span className="menu-section-count">
-                      {cat.items.length}
-                    </span>
+                    <div className="menu-section-header-text">
+                      <h2 className="menu-section-title">{cat.name}</h2>
+                      {cat.description && (
+                        <p className="menu-section-subtitle">{cat.description}</p>
+                      )}
+                    </div>
+                    <span className="menu-section-count">{cat.items.length}</span>
                   </div>
-
-                  {cat.description && (
-                    <p className="menu-section-desc">{cat.description}</p>
-                  )}
 
                   <div className="menu-items">
                     {cat.items.map((item) => (
-                      <div key={item.id} className="menu-item">
-                        <div className="menu-item-content">
-                          <div className="menu-item-top">
-                            {item.popular && (
-                              <Flame size={10} className="menu-popular-icon" />
-                            )}
-                            <h3>{item.name}</h3>
-                            {item.popular && (
-                              <span className="menu-badge">Popular</span>
-                            )}
+                      <div
+                        key={item.id}
+                        className={`menu-item ${item.popular ? "featured" : ""}`}
+                      >
+                        {item.popular && <div className="menu-item-badge" />}
+
+                        <div className="menu-item-main">
+                          <div className="menu-item-header">
+                            <h3 className="menu-item-name">{item.name}</h3>
+                            <span className="menu-item-dots" />
+                            <span className="menu-item-price">
+                              Rs. {item.price}
+                            </span>
                           </div>
+                          
                           {item.description && (
-                            <p className="menu-item-desc">
-                              {item.description}
-                            </p>
+                            <div className="menu-item-desc-row">
+                              <p className="menu-item-desc">{item.description}</p>
+                            </div>
+                          )}
+                          
+                          {item.popular && (
+                            <div className="menu-item-tags">
+                              <span className="menu-tag popular">
+                                <Flame size={10} />
+                                Most Popular
+                              </span>
+                              <span className="menu-tag special">
+                                <Award size={10} />
+                                Customer Favorite
+                              </span>
+                            </div>
                           )}
                         </div>
-                        <span className="menu-price">Rs. {item.price}</span>
                       </div>
                     ))}
                   </div>
@@ -393,39 +511,48 @@ export default function PublicMenuPage() {
               ))
             ) : (
               <div className="menu-empty">
-                <Coffee size={40} strokeWidth={1} />
-                <p>No items available yet. Check back soon!</p>
+                <div className="menu-empty-icon">
+                  <UtensilsCrossed size={36} strokeWidth={1} />
+                </div>
+                <p>No items available yet.</p>
+                <span>Check back soon!</span>
               </div>
             )}
-          </main>
+          </div>
 
-          {/* ================================================================ */}
-          {/* FOOTER                                                            */}
-          {/* ================================================================ */}
+          {/* Footer */}
           <footer className="menu-footer">
-            <div className="menu-header-line">
-              <span>✦ ✦ ✦</span>
+            <div className="menu-footer-divider">
+              <span className="menu-footer-divider-line" />
+              <span className="menu-footer-divider-diamond" />
+              <span className="menu-footer-divider-line" />
             </div>
-            <p className="menu-thanks">Thank you for dining with us!</p>
-
-            {hasWatermark ? (
-              <div className="menu-watermark">
-                <QrCode size={12} strokeWidth={2} />
-                <span>
-                  Powered by <strong>EasyMenu</strong>
-                </span>
-                <span className="menu-watermark-divider">•</span>
-                <span>Get your own digital menu at easymenu.com</span>
-              </div>
-            ) : (
-              <p className="menu-brand">
-                <QrCode size={10} strokeWidth={2} />
-                Powered by EasyMenu
-              </p>
-            )}
+            <div className="menu-footer-ornament">
+              <Heart size={16} fill="#C9A96E" color="#C9A96E" />
+            </div>
+            <p className="menu-footer-text">Thank you for dining with us</p>
+            <p className="menu-footer-subtext">We hope to serve you again soon</p>
+            
+            <div className="menu-footer-powered">
+              <QrCode size={12} strokeWidth={1.5} color="#C9A96E" />
+              {hasWatermark ? (
+                <span>Powered by <strong>EasyMenu</strong></span>
+              ) : (
+                <span>Powered by <strong>EasyMenu PRO</strong></span>
+              )}
+            </div>
           </footer>
         </div>
       </div>
+
+      {/* Scroll to Top Button */}
+      <button 
+        className={`menu-scroll-top-btn ${showScrollTop ? "visible" : ""}`}
+        onClick={scrollToTop}
+        aria-label="Scroll to top"
+      >
+        <ChevronUp size={20} strokeWidth={2} />
+      </button>
     </div>
   );
 }

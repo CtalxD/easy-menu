@@ -1,4 +1,3 @@
-// frontend/app/m/demo/page.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -10,9 +9,8 @@ import {
   Flame,
   ArrowLeft,
   Heart,
-  Star,
-  Clock,
   Award,
+  Clock,
   UtensilsCrossed,
   Soup,
   ChefHat,
@@ -20,6 +18,9 @@ import {
   Cake,
   Croissant,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
+  Salad,
   Eye,
   X,
 } from "lucide-react";
@@ -36,7 +37,6 @@ interface DemoItem {
   price: number;
   popular: boolean;
   soldOut: boolean;
-  chefSpecial?: boolean;
   imageUrl: string;
 }
 
@@ -63,9 +63,9 @@ const demoCategories: DemoCategory[] = [
     id: "starters",
     name: "Starters",
     subtitle: "Begin your culinary journey",
-    icon: <UtensilsCrossed size={16} strokeWidth={1.5} />,
+    icon: <Salad size={16} strokeWidth={1.5} />,
     items: [
-      { id: "s1", name: "Buff Momo", description: "Handcrafted steamed dumplings with spiced buffalo, signature tangy achar, and fresh herbs", price: 180, popular: true, soldOut: false, chefSpecial: true, imageUrl: "https://hungerend.com/wp-content/uploads/2022/03/buff-steam-momo-min.jpg" },
+      { id: "s1", name: "Buff Momo", description: "Handcrafted steamed dumplings with spiced buffalo, signature tangy achar, and fresh herbs", price: 180, popular: true, soldOut: false, imageUrl: "https://hungerend.com/wp-content/uploads/2022/03/buff-steam-momo-min.jpg" },
       { id: "s2", name: "Chicken Wings", description: "Crispy twice-fried wings tossed in house-made hot sauce with gorgonzola dip", price: 350, popular: false, soldOut: false, imageUrl: "https://thumbs.dreamstime.com/b/png-crispy-chicken-wings-against-transparent-background-culinary-food-snack-design-projects-png-crispy-chicken-wings-381094820.jpg" },
       { id: "s3", name: "Veg Spring Roll", description: "Crispy golden pastry filled with julienned garden vegetables and sweet chili", price: 220, popular: false, soldOut: false, imageUrl: "https://static.vecteezy.com/system/resources/thumbnails/050/176/342/small/egg-roll-in-white-plate-isolated-on-transparent-background-png.png" },
       { id: "s4", name: "Garlic & Herb Bread", description: "Sourdough batard with roasted garlic butter and aged mozzarella", price: 150, popular: false, soldOut: true, imageUrl: "https://png.pngtree.com/png-vector/20240607/ourmid/pngtree-garlic-bread-concepts-png-image_12638044.png" },
@@ -89,7 +89,7 @@ const demoCategories: DemoCategory[] = [
     subtitle: "The heart of our kitchen",
     icon: <ChefHat size={16} strokeWidth={1.5} />,
     items: [
-      { id: "m1", name: "Grilled Chicken Steak", description: "Free-range breast with truffle mashed potatoes and peppercorn jus", price: 480, popular: true, soldOut: false, chefSpecial: true, imageUrl: "https://img.magnific.com/free-photo/grilled-chicken-with-salad-isolated-white-background_123827-35683.jpg?semt=ais_hybrid&w=740&q=80" },
+      { id: "m1", name: "Grilled Chicken Steak", description: "Free-range breast with truffle mashed potatoes and peppercorn jus", price: 480, popular: true, soldOut: false, imageUrl: "https://img.magnific.com/free-photo/grilled-chicken-with-salad-isolated-white-background_123827-35683.jpg?semt=ais_hybrid&w=740&q=80" },
       { id: "m2", name: "Dal Bhat", description: "24-hour power meal with lentil soup, chicken curry, and pickles", price: 250, popular: true, soldOut: false, imageUrl: "https://img.freepik.com/premium-photo/nepali-meal-daal-bhaat-tarkari-thakali-thali-meat-rice-vegetables-pickle-dhido-meal-dinner_723123-4468.jpg?semt=ais_hybrid&w=740&q=80" },
       { id: "m3", name: "Buff Burger", description: "Hand-pressed buffalo patty with aged cheddar on brioche bun", price: 380, popular: false, soldOut: false, imageUrl: "https://www.kindpng.com/picc/m/70-706025_buffalo-burger-hd-png-download.png" },
       { id: "m4", name: "Pad Thai", description: "Rice noodles with wild-caught shrimp and tamarind sauce", price: 300, popular: false, soldOut: false, imageUrl: "https://png.pngtree.com/png-clipart/20250213/original/pngtree-pad-thai-isolated-on-transparent-background-png-image_20428744.png" },
@@ -114,12 +114,20 @@ const demoCategories: DemoCategory[] = [
     subtitle: "A sweet finale",
     icon: <Cake size={16} strokeWidth={1.5} />,
     items: [
-      { id: "des1", name: "Chocolate Brownie", description: "Warm fudgy brownie with vanilla ice cream and dark chocolate", price: 280, popular: true, soldOut: false, chefSpecial: true, imageUrl: "https://previews.123rf.com/images/jirkaejc/jirkaejc1212/jirkaejc121200089/16853692-chocolate-brownies-dessert-on-white-background.jpg" },
+      { id: "des1", name: "Chocolate Brownie", description: "Warm fudgy brownie with vanilla ice cream and dark chocolate", price: 280, popular: true, soldOut: false, imageUrl: "https://previews.123rf.com/images/jirkaejc/jirkaejc1212/jirkaejc121200089/16853692-chocolate-brownies-dessert-on-white-background.jpg" },
       { id: "des2", name: "Tiramisu", description: "Espresso-soaked ladyfingers with mascarpone cream", price: 350, popular: false, soldOut: false, imageUrl: "https://static.vecteezy.com/system/resources/previews/026/516/076/large_2x/delicious-tiramisu-isolated-on-white-background-photo.jpg" },
       { id: "des3", name: "Apple Crumble", description: "Cinnamon-spiced apples with buttery oat streusel", price: 250, popular: false, soldOut: true, imageUrl: "https://images.unsplash.com/photo-1568571780765-9276ac8b75a2?w=600&q=80" },
     ],
   },
 ];
+
+const categoryIcons: Record<string, React.ReactNode> = {
+  Starters: <Salad size={14} strokeWidth={1.5} />,
+  "Soups & Noodles": <Soup size={14} strokeWidth={1.5} />,
+  "Main Course": <ChefHat size={14} strokeWidth={1.5} />,
+  Beverages: <Coffee size={14} strokeWidth={1.5} />,
+  Desserts: <Cake size={14} strokeWidth={1.5} />,
+};
 
 /* ===================================================================
    COMPONENT
@@ -130,8 +138,11 @@ export default function DemoMenuPage() {
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [navScrolled, setNavScrolled] = useState(false);
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
-  const navRef = useRef<HTMLElement>(null);
+  const navContainerRef = useRef<HTMLDivElement>(null);
+  const navWrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -139,8 +150,8 @@ export default function DemoMenuPage() {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 400);
       
-      if (navRef.current) {
-        const navTop = navRef.current.getBoundingClientRect().top;
+      if (navWrapperRef.current) {
+        const navTop = navWrapperRef.current.getBoundingClientRect().top;
         setNavScrolled(navTop <= 0);
       }
     };
@@ -161,8 +172,43 @@ export default function DemoMenuPage() {
     };
   }, [selectedImage]);
 
+  useEffect(() => {
+    const checkArrows = () => {
+      if (navContainerRef.current) {
+        const { scrollLeft, scrollWidth, clientWidth } = navContainerRef.current;
+        setShowLeftArrow(scrollLeft > 5);
+        setShowRightArrow(scrollLeft + clientWidth < scrollWidth - 5);
+      }
+    };
+
+    const container = navContainerRef.current;
+    if (container) {
+      checkArrows();
+      container.addEventListener("scroll", checkArrows, { passive: true });
+      window.addEventListener("resize", checkArrows);
+      return () => {
+        container.removeEventListener("scroll", checkArrows);
+        window.removeEventListener("resize", checkArrows);
+      };
+    }
+  }, []);
+
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const scrollNav = (direction: "left" | "right") => {
+    if (navContainerRef.current) {
+      const scrollAmount = 250;
+      const newScrollLeft = direction === "left" 
+        ? navContainerRef.current.scrollLeft - scrollAmount 
+        : navContainerRef.current.scrollLeft + scrollAmount;
+      
+      navContainerRef.current.scrollTo({
+        left: newScrollLeft,
+        behavior: "smooth",
+      });
+    }
   };
 
   const openImageModal = (imageUrl: string, name: string) => {
@@ -173,12 +219,27 @@ export default function DemoMenuPage() {
     setSelectedImage(null);
   };
 
+  // Sort items within each category: popular items first, sold out last
+  const sortCategoryItems = (items: DemoItem[]): DemoItem[] => {
+    return [...items].sort((a, b) => {
+      if (a.soldOut && !b.soldOut) return 1;
+      if (!a.soldOut && b.soldOut) return -1;
+      if (a.popular && !b.popular) return -1;
+      if (!a.popular && b.popular) return 1;
+      return 0;
+    });
+  };
+
   if (!mounted) return null;
 
-  const filteredCategories =
-    activeCategory === "all"
-      ? demoCategories
-      : demoCategories.filter((cat) => cat.id === activeCategory);
+  const allCategories = demoCategories.map(cat => ({
+    ...cat,
+    items: sortCategoryItems(cat.items),
+  }));
+
+  const displayCategories = activeCategory === "all"
+    ? allCategories
+    : allCategories.filter((cat) => cat.id === activeCategory);
 
   return (
     <div className="dm-root">
@@ -196,6 +257,8 @@ export default function DemoMenuPage() {
           {/* Header */}
           <header className="dm-header">
             <div className="dm-header-bg" />
+            <div className="dm-header-shine" />
+            <div className="dm-header-glow" />
             
             {/* Logo/Emblem */}
             <div className="dm-emblem">
@@ -208,8 +271,8 @@ export default function DemoMenuPage() {
               ) : (
                 <div className="dm-monogram">
                   <svg 
-                    width="28" 
-                    height="28" 
+                    width="24" 
+                    height="24" 
                     viewBox="0 0 24 24" 
                     fill="none" 
                     stroke="currentColor" 
@@ -258,37 +321,62 @@ export default function DemoMenuPage() {
           </header>
 
           {/* Category Navigation */}
-          <nav 
-            ref={navRef}
-            className={`dm-nav ${navScrolled ? "dm-nav-shadow" : ""}`}
+          <div 
+            ref={navWrapperRef}
+            className={`dm-nav-wrapper ${navScrolled ? "dm-nav-shadow" : ""}`}
           >
-            <button
-              className={`dm-nav-btn ${activeCategory === "all" ? "active" : ""}`}
-              onClick={() => setActiveCategory("all")}
-            >
-              <Croissant size={14} strokeWidth={1.5} />
-              <span>Full Menu</span>
-            </button>
-            {demoCategories.map((cat) => (
-              <button
-                key={cat.id}
-                className={`dm-nav-btn ${activeCategory === cat.id ? "active" : ""}`}
-                onClick={() => setActiveCategory(cat.id)}
+            {showLeftArrow && (
+              <button 
+                className="dm-nav-arrow dm-nav-arrow-left"
+                onClick={() => scrollNav("left")}
+                aria-label="Scroll categories left"
               >
-                {cat.icon}
-                <span>{cat.name}</span>
+                <ChevronLeft size={18} strokeWidth={2} />
               </button>
-            ))}
-          </nav>
+            )}
+            
+            <div 
+              ref={navContainerRef}
+              className="dm-nav"
+            >
+              <button
+                className={`dm-nav-btn ${activeCategory === "all" ? "active" : ""}`}
+                onClick={() => setActiveCategory("all")}
+              >
+                <UtensilsCrossed size={14} strokeWidth={1.5} />
+                <span>Full Menu</span>
+              </button>
+              {demoCategories.map((cat) => (
+                <button
+                  key={cat.id}
+                  className={`dm-nav-btn ${activeCategory === cat.id ? "active" : ""}`}
+                  onClick={() => setActiveCategory(cat.id)}
+                >
+                  {categoryIcons[cat.name] || <UtensilsCrossed size={14} strokeWidth={1.5} />}
+                  <span>{cat.name}</span>
+                </button>
+              ))}
+            </div>
+
+            {showRightArrow && (
+              <button 
+                className="dm-nav-arrow dm-nav-arrow-right"
+                onClick={() => scrollNav("right")}
+                aria-label="Scroll categories right"
+              >
+                <ChevronRight size={18} strokeWidth={2} />
+              </button>
+            )}
+          </div>
 
           {/* Menu Content */}
           <div className="dm-content">
-            {filteredCategories.map((cat) => (
+            {displayCategories.map((cat) => (
               <section key={cat.id} className="dm-section">
                 {/* Section Header */}
                 <div className="dm-section-header">
                   <div className="dm-section-icon">
-                    {cat.icon}
+                    {categoryIcons[cat.name] || <UtensilsCrossed size={16} strokeWidth={1.5} />}
                   </div>
                   <div className="dm-section-header-text">
                     <h2 className="dm-section-title">{cat.name}</h2>
@@ -296,6 +384,7 @@ export default function DemoMenuPage() {
                       <p className="dm-section-subtitle">{cat.subtitle}</p>
                     )}
                   </div>
+                  <span className="dm-section-count">{cat.items.filter(i => !i.soldOut).length}</span>
                 </div>
 
                 {/* Menu Items */}
@@ -303,10 +392,9 @@ export default function DemoMenuPage() {
                   {cat.items.map((item) => (
                     <div
                       key={item.id}
-                      className={`dm-item ${item.soldOut ? "sold-out" : ""} ${item.chefSpecial ? "featured" : ""}`}
+                      className={`dm-item ${item.soldOut ? "sold-out" : ""} ${item.popular && !item.soldOut ? "featured" : ""}`}
                     >
-                      {/* Featured Badge */}
-                      {item.chefSpecial && !item.soldOut && (
+                      {item.popular && !item.soldOut && (
                         <div className="dm-item-badge" />
                       )}
 
@@ -320,7 +408,7 @@ export default function DemoMenuPage() {
                           </span>
                         </div>
                         
-                        {/* Description Row with View Image */}
+                        {/* Description with View Image button */}
                         <div className="dm-item-desc-row">
                           <p className="dm-item-desc">{item.description}</p>
                           {!item.soldOut && (
@@ -338,16 +426,16 @@ export default function DemoMenuPage() {
                         {/* Tags */}
                         <div className="dm-item-tags">
                           {item.popular && !item.soldOut && (
-                            <span className="dm-tag popular">
-                              <Flame size={10} />
-                              Most Popular
-                            </span>
-                          )}
-                          {item.chefSpecial && !item.soldOut && (
-                            <span className="dm-tag special">
-                              <Award size={10} />
-                              Chef's Special
-                            </span>
+                            <>
+                              <span className="dm-tag popular">
+                                <Flame size={10} />
+                                Most Popular
+                              </span>
+                              <span className="dm-tag special">
+                                <Award size={10} />
+                                Customer Favorite
+                              </span>
+                            </>
                           )}
                           {item.soldOut && (
                             <span className="dm-tag unavailable">
@@ -365,6 +453,11 @@ export default function DemoMenuPage() {
 
           {/* Footer */}
           <footer className="dm-footer">
+            <div className="dm-footer-divider">
+              <span className="dm-footer-divider-line" />
+              <span className="dm-footer-divider-diamond" />
+              <span className="dm-footer-divider-line" />
+            </div>
             <div className="dm-footer-ornament">
               <Heart size={16} fill="#C9A96E" color="#C9A96E" />
             </div>

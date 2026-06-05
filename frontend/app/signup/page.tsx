@@ -2,14 +2,16 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAuth } from "../contexts/AuthContext";
 import { QrCode, Mail, Lock, Eye, EyeOff, ArrowRight, ArrowLeft, Zap, Smartphone, LayoutDashboard, Sparkles, User, Store } from "lucide-react";
 import "./signup.css";
 
 export default function SignupPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [name, setName] = useState("");
@@ -20,6 +22,12 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace("/dashboard");
+    }
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,6 +101,10 @@ export default function SignupPage() {
       setLoading(false);
     }
   };
+
+  if (authLoading || user) {
+    return null;
+  }
 
   return (
     <div className="signup-root">
