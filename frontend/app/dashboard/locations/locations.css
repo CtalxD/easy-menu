@@ -1,0 +1,72 @@
+/* Locations Tab Styles */
+
+.dash-locations-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 480px) {
+  .dash-locations-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 16px;
+  }
+}
+
+@media (min-width: 768px) {
+  .dash-locations-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+}
+
+.dash-location-card {
+  background: var(--white);
+  border: 1px solid var(--sand-mid);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  transition: all var(--transition);
+}
+
+.dash-location-card:hover {
+  border-color: var(--sand-dark);
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+.dash-location-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-location-info h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0 0 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dash-location-info h3 svg {
+  color: var(--terra);
+  flex-shrink: 0;
+}
+
+.dash-location-info p {
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.dash-location-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}

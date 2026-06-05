@@ -1,0 +1,777 @@
+/* =====================================
+   EasyMenu - Membership Page
+   Ink + Sand + Terracotta
+   MOBILE-FIRST RESPONSIVE
+   ===================================== */
+
+/* ===================================================================
+   1. CSS VARIABLES
+   =================================================================== */
+
+:root {
+  --ink: #1A1510;
+  --ink-soft: #2A2520;
+  --ink-muted: #6B6560;
+  --cream: #FAF7F2;
+  --white: #FFFFFF;
+  --sand-light: #F5F0E8;
+  --sand-mid: #E8E0D5;
+  --sand-dark: #D4C9B5;
+  --terra: #C45E3A;
+  --terra-light: #D97A5A;
+  --terra-pale: rgba(196, 94, 58, 0.08);
+  --terra-glow: rgba(196, 94, 58, 0.15);
+  --green: #4CAF50;
+  --green-pale: rgba(76, 175, 80, 0.1);
+  --red: #E53935;
+  --red-pale: rgba(229, 57, 53, 0.1);
+  --yellow: #FFA726;
+  --yellow-pale: rgba(255, 167, 38, 0.1);
+  --sage: #6A8C78;
+  --shadow-sm: 0 1px 3px rgba(26, 21, 16, 0.06);
+  --shadow-md: 0 4px 12px rgba(26, 21, 16, 0.08);
+  --shadow-lg: 0 8px 24px rgba(26, 21, 16, 0.12);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+  --transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===================================================================
+   2. RESET
+   =================================================================== */
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===================================================================
+   3. KEYFRAMES
+   =================================================================== */
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.65); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===================================================================
+   4. ROOT CONTAINER
+   =================================================================== */
+
+.membership-root {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: 'Outfit', -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  position: relative;
+  width: 100%;
+  max-width: 100vw;
+}
+
+.membership-root::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.5;
+}
+
+/* ===================================================================
+   5. CONTAINER
+   =================================================================== */
+
+.container {
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 16px;
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 480px) { .container { padding: 0 24px; } }
+@media (min-width: 768px) { .container { padding: 0 32px; } }
+@media (min-width: 1024px) { .container { padding: 0 36px; } }
+
+/* ===================================================================
+   6. TYPOGRAPHY
+   =================================================================== */
+
+.section-label {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--terra);
+  margin-bottom: 10px;
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+@media (min-width: 480px) {
+  .section-label { font-size: 10px; letter-spacing: 3px; margin-bottom: 14px; }
+}
+
+.section-heading {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin: 0 0 28px;
+  color: var(--ink);
+  max-width: 100%;
+}
+
+@media (min-width: 480px) { .section-heading { font-size: 30px; margin-bottom: 36px; } }
+@media (min-width: 768px) { .section-heading { font-size: 36px; margin-bottom: 44px; max-width: 600px; } }
+@media (min-width: 1024px) { .section-heading { font-size: 40px; margin-bottom: 52px; } }
+
+.text-accent { color: var(--terra); }
+.spinning { animation: spin 1s linear infinite; }
+
+/* ===================================================================
+   7. NAVBAR
+   =================================================================== */
+
+.membership-root .navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: rgba(250, 246, 239, 0.92);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border-bottom: 1px solid var(--sand-mid);
+}
+
+.membership-root .nav-inner {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+}
+
+@media (min-width: 480px) { .membership-root .nav-inner { padding: 0 24px; height: 64px; } }
+@media (min-width: 768px) { .membership-root .nav-inner { padding: 0 32px; height: 68px; } }
+@media (min-width: 1024px) { .membership-root .nav-inner { padding: 0 36px; height: 72px; } }
+
+.membership-root .nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.3px;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+@media (min-width: 480px) { .membership-root .nav-logo { font-size: 20px; } }
+.membership-root .nav-logo:hover { opacity: 0.75; }
+.membership-root .nav-logo svg { color: var(--terra); flex-shrink: 0; }
+
+.membership-root .nav-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+@media (min-width: 480px) { .membership-root .nav-right { gap: 8px; } }
+@media (min-width: 768px) { .membership-root .nav-right { gap: 12px; } }
+
+.membership-root .nav-link {
+  font-size: 13px;
+  color: var(--ink-muted);
+  text-decoration: none;
+  font-weight: 500;
+  padding: 6px 8px;
+  transition: color 0.15s;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+@media (min-width: 480px) { .membership-root .nav-link { font-size: 14px; padding: 8px 10px; } }
+.membership-root .nav-link:hover { color: var(--ink); }
+
+.membership-root .nav-cta {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--white);
+  background: var(--ink);
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: all 0.22s;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+}
+
+@media (min-width: 480px) { .membership-root .nav-cta { font-size: 13px; padding: 9px 18px; margin-left: 6px; } }
+@media (min-width: 768px) { .membership-root .nav-cta { padding: 10px 22px; margin-left: 8px; } }
+.membership-root .nav-cta:hover { background: var(--ink-soft); transform: translateY(-1px); box-shadow: 0 6px 20px rgba(26, 21, 16, 0.22); }
+
+.membership-root .nav-user-greeting {
+  font-size: 11px;
+  color: var(--terra);
+  font-weight: 600;
+  padding: 5px 10px;
+  background: var(--terra-pale);
+  border-radius: 100px;
+  white-space: nowrap;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-left: 4px;
+}
+
+@media (min-width: 480px) { .membership-root .nav-user-greeting { font-size: 12px; padding: 6px 12px; max-width: 140px; margin-left: 6px; } }
+@media (min-width: 768px) { .membership-root .nav-user-greeting { font-size: 13px; padding: 7px 14px; max-width: 180px; margin-left: 8px; } }
+
+/* ===================================================================
+   8. BUTTONS
+   =================================================================== */
+
+.membership-root .btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--terra);
+  color: var(--white);
+  padding: 12px 20px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all 0.22s cubic-bezier(0.34, 1.4, 0.64, 1);
+  border: none;
+  cursor: pointer;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+}
+
+@media (min-width: 480px) { .membership-root .btn-primary { padding: 14px 26px; font-size: 14px; gap: 8px; } }
+.membership-root .btn-primary:hover { background: var(--terra-light); transform: translateY(-2px); box-shadow: 0 10px 32px rgba(196, 94, 58, 0.35); }
+.membership-root .btn-large { padding: 14px 28px; font-size: 14px; border-radius: var(--radius-md); }
+@media (min-width: 480px) { .membership-root .btn-large { padding: 17px 36px; font-size: 15px; } }
+
+/* ===================================================================
+   9. HERO SECTION
+   =================================================================== */
+
+.membership-hero { padding: 100px 0 60px; position: relative; overflow: hidden; }
+@media (min-width: 480px) { .membership-hero { padding: 130px 0 80px; } }
+@media (min-width: 768px) { .membership-hero { padding: 150px 0 100px; } }
+
+.membership-hero::after {
+  content: '';
+  position: absolute;
+  top: -100px; right: -150px;
+  width: 400px; height: 400px;
+  background: radial-gradient(ellipse at center, rgba(196, 94, 58, 0.06) 0%, transparent 70%);
+  pointer-events: none;
+  border-radius: 50%;
+}
+
+@media (min-width: 768px) { .membership-hero::after { width: 600px; height: 600px; } }
+
+.membership-hero-content { text-align: center; max-width: 700px; margin: 0 auto; }
+
+.membership-hero-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 28px; font-weight: 900;
+  line-height: 1.12; letter-spacing: -0.03em;
+  margin: 16px 0 20px; color: var(--ink);
+}
+
+@media (min-width: 480px) { .membership-hero-title { font-size: 38px; margin: 20px 0 24px; } }
+@media (min-width: 768px) { .membership-hero-title { font-size: 52px; margin: 24px 0 28px; } }
+@media (min-width: 1024px) { .membership-hero-title { font-size: 60px; } }
+
+.membership-hero-subtitle { font-size: 14px; line-height: 1.65; color: var(--ink-muted); margin: 0 auto 28px; max-width: 500px; }
+@media (min-width: 480px) { .membership-hero-subtitle { font-size: 16px; margin-bottom: 36px; } }
+@media (min-width: 768px) { .membership-hero-subtitle { font-size: 18px; margin-bottom: 44px; } }
+
+.membership-hero-cta { display: flex; justify-content: center; }
+
+.hero-eyebrow {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--terra-pale); border: 1px solid rgba(196, 94, 58, 0.22);
+  color: var(--terra); font-size: 10px; font-weight: 600;
+  padding: 4px 10px; border-radius: 100px;
+  margin-bottom: 16px; letter-spacing: 0.3px;
+}
+
+@media (min-width: 480px) { .hero-eyebrow { font-size: 11px; padding: 5px 14px; gap: 8px; margin-bottom: 26px; } }
+
+.hero-eyebrow-dot { width: 5px; height: 5px; background: var(--terra); border-radius: 50%; animation: pulse-dot 2.2s ease-in-out infinite; }
+@media (min-width: 480px) { .hero-eyebrow-dot { width: 6px; height: 6px; } }
+
+/* ===================================================================
+   10. PLANS SECTION
+   =================================================================== */
+
+.membership-plans {
+  padding: 60px 0;
+  background: var(--sand-light);
+  border-top: 1px solid var(--sand-mid);
+  border-bottom: 1px solid var(--sand-mid);
+}
+
+@media (min-width: 480px) { .membership-plans { padding: 80px 0; } }
+@media (min-width: 768px) { .membership-plans { padding: 100px 0; } }
+
+.plans-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+  align-items: stretch;
+}
+
+@media (min-width: 480px) { .plans-grid { gap: 28px; } }
+@media (min-width: 768px) { .plans-grid { grid-template-columns: repeat(2, 1fr); gap: 28px; } }
+@media (min-width: 1024px) { .plans-grid { gap: 32px; } }
+
+/* ===================================================================
+   11. PLAN CARD WRAPPER
+   =================================================================== */
+
+.plan-card-wrap {
+  transition: all 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+  height: 100%;
+  max-width: 380px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.plan-card-wrap.popular { transform: scale(1.02); z-index: 2; }
+.plan-card-wrap.current-plan { position: relative; }
+
+@media (min-width: 768px) { .plan-card-wrap.popular { transform: scale(1.03); } }
+
+.plan-card-wrap:hover { transform: translateY(-4px); }
+.plan-card-wrap.popular:hover { transform: scale(1.03) translateY(-4px); }
+.plan-card-wrap.current-plan:hover { transform: translateY(-3px); }
+
+/* ===================================================================
+   12. PLAN CARD
+   =================================================================== */
+
+.plan-card {
+  background: var(--white);
+  border: 1.5px solid var(--sand-mid);
+  border-radius: var(--radius-lg);
+  padding: 26px 20px;
+  position: relative;
+  overflow: hidden;
+  text-align: center;
+  transition: all 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 480px) { .plan-card { padding: 28px 24px; border-radius: var(--radius-xl); } }
+
+.plan-card:hover { border-color: var(--sand-dark); box-shadow: 0 12px 40px rgba(26, 21, 16, 0.12); }
+
+.plan-card.active-plan-card {
+  border-color: rgba(76, 175, 80, 0.4);
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.08);
+}
+
+.plan-card.pro {
+  background: var(--ink);
+  border: 1.5px solid var(--ink-soft);
+  color: var(--sand-light);
+  box-shadow: 0 20px 50px rgba(26, 21, 16, 0.18), 0 6px 20px rgba(26, 21, 16, 0.1);
+}
+
+.plan-card.pro.active-plan-card {
+  border-color: rgba(76, 175, 80, 0.5);
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.12), 0 20px 50px rgba(26, 21, 16, 0.18);
+}
+
+.plan-card.pro::after {
+  content: '';
+  position: absolute;
+  top: -40px; left: 50%;
+  transform: translateX(-50%);
+  width: 160px; height: 120px;
+  background: radial-gradient(ellipse, rgba(196, 94, 58, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* ===================================================================
+   13. PLAN BADGES
+   =================================================================== */
+
+.plan-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: rgba(196, 94, 58, 0.18); border: 1px solid rgba(196, 94, 58, 0.3);
+  color: var(--terra-light); font-size: 9px; font-weight: 700;
+  padding: 3px 10px; border-radius: 100px;
+  margin-bottom: 12px; letter-spacing: 1px;
+  text-transform: uppercase; font-family: 'JetBrains Mono', monospace;
+  position: relative; z-index: 1; align-self: center;
+}
+
+.plan-current-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--green-pale); border: 1px solid rgba(76, 175, 80, 0.3);
+  color: var(--green); font-size: 9px; font-weight: 700;
+  padding: 3px 10px; border-radius: 100px;
+  margin-bottom: 12px; letter-spacing: 0.5px;
+  text-transform: uppercase; font-family: 'JetBrains Mono', monospace;
+  align-self: center; position: relative; z-index: 1;
+}
+
+.plan-expired-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--red-pale); border: 1px solid rgba(229, 57, 53, 0.3);
+  color: var(--red); font-size: 9px; font-weight: 700;
+  padding: 3px 10px; border-radius: 100px;
+  margin-bottom: 12px; letter-spacing: 0.5px;
+  text-transform: uppercase; font-family: 'JetBrains Mono', monospace;
+  align-self: center; position: relative; z-index: 1;
+}
+
+/* ===================================================================
+   14. PLAN HEADER
+   =================================================================== */
+
+.plan-header { position: relative; z-index: 1; margin-bottom: 16px; }
+
+.plan-icon-wrap {
+  width: 44px; height: 44px;
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 10px;
+}
+
+.plan-icon-wrap.starter { background: rgba(106, 140, 120, 0.1); border: 1px solid rgba(106, 140, 120, 0.2); color: #6A8C78; }
+.plan-icon-wrap.pro { background: var(--terra-pale); border: 1px solid rgba(196, 94, 58, 0.2); color: var(--terra); }
+
+.plan-name {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 20px; font-weight: 800;
+  color: var(--ink); margin-bottom: 6px; letter-spacing: -0.3px;
+}
+
+.plan-card.pro .plan-name { color: var(--sand-light); }
+
+.plan-description {
+  font-size: 12px; color: var(--ink-muted); margin: 0 auto;
+  line-height: 1.5; max-width: 260px;
+}
+
+.plan-card.pro .plan-description { color: var(--sand-mid); }
+
+/* ===================================================================
+   15. PRICE SECTION
+   =================================================================== */
+
+.plan-price-section {
+  position: relative; z-index: 1;
+  margin-bottom: 16px; padding-bottom: 16px;
+  border-bottom: 1px solid var(--sand-mid);
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+}
+
+.plan-card.pro .plan-price-section { border-bottom-color: rgba(255, 255, 255, 0.08); }
+
+.plan-price { display: flex; align-items: baseline; justify-content: center; }
+
+.plan-dollar { font-size: 18px; color: var(--ink-muted); font-weight: 500; font-family: 'JetBrains Mono', monospace; line-height: 1; margin-right: 2px; }
+.plan-card.pro .plan-dollar { color: var(--sand-mid); }
+
+.plan-amount { font-family: 'Playfair Display', Georgia, serif; font-size: 44px; font-weight: 900; color: var(--ink); line-height: 1; letter-spacing: -0.04em; }
+.plan-card.pro .plan-amount { color: var(--sand-light); }
+
+.plan-period { font-size: 13px; color: var(--ink-muted); font-weight: 500; margin-left: 2px; }
+.plan-card.pro .plan-period { color: var(--sand-mid); }
+
+.plan-save { font-size: 9px; font-weight: 700; color: var(--terra-light); background: rgba(196, 94, 58, 0.16); padding: 2px 8px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; }
+
+/* ===================================================================
+   16. FEATURES LIST
+   =================================================================== */
+
+.plan-features {
+  list-style: none; padding: 0; margin: 0 0 16px;
+  text-align: left; position: relative; z-index: 1; flex: 1;
+}
+
+.plan-features li {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 7px 0; font-size: 13px; color: var(--ink);
+  line-height: 1.4; border-bottom: 1px solid var(--sand-light);
+}
+
+.plan-card.pro .plan-features li { color: var(--sand-light); border-bottom-color: rgba(255, 255, 255, 0.05); }
+.plan-features li:last-child { border-bottom: none; }
+
+.plan-check {
+  width: 18px; height: 18px; border-radius: 4px;
+  background: rgba(106, 140, 120, 0.1); border: 1px solid rgba(106, 140, 120, 0.2);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px; color: #6A8C78;
+}
+
+.plan-card.pro .plan-check { background: rgba(196, 94, 58, 0.18); border: 1px solid rgba(196, 94, 58, 0.25); color: var(--terra-light); }
+
+/* ===================================================================
+   17. CTA BUTTONS
+   =================================================================== */
+
+.plan-cta-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 13px 20px; border-radius: var(--radius-md);
+  font-size: 14px; font-weight: 700; text-decoration: none;
+  transition: all 0.22s cubic-bezier(0.34, 1.4, 0.64, 1);
+  border: 2px solid var(--sand-mid); background: transparent; color: var(--ink);
+  cursor: pointer; font-family: 'Outfit', sans-serif; letter-spacing: 0.2px;
+  position: relative; z-index: 1; margin-top: auto; min-height: 46px;
+}
+
+.plan-cta-btn:hover { background: var(--sand-light); border-color: var(--sand-dark); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(26, 21, 16, 0.15); }
+
+.plan-cta-btn.buy-now-cta,
+.plan-cta-btn.popular-cta { background: var(--terra); color: var(--white); border: 2px solid var(--terra); box-shadow: 0 3px 14px rgba(196, 94, 58, 0.22); }
+.plan-cta-btn.buy-now-cta:hover,
+.plan-cta-btn.popular-cta:hover { background: var(--terra-light); border-color: var(--terra-light); box-shadow: 0 6px 24px rgba(196, 94, 58, 0.35); transform: translateY(-2px); }
+
+.plan-card.pro .plan-cta-btn.buy-now-cta { background: var(--terra); color: var(--white); border: 2px solid var(--terra); box-shadow: 0 3px 16px rgba(196, 94, 58, 0.3); }
+
+.plan-cta-btn.renew-cta { background: var(--terra); color: var(--white); border: 2px solid var(--terra); box-shadow: 0 3px 14px rgba(196, 94, 58, 0.22); }
+.plan-cta-btn.renew-cta:hover { background: var(--terra-light); border-color: var(--terra-light); box-shadow: 0 6px 24px rgba(196, 94, 58, 0.35); transform: translateY(-2px); }
+
+.plan-cta-btn:disabled { opacity: 0.5; cursor: not-allowed; background: var(--sand-mid); border-color: var(--sand-mid); color: var(--ink-muted); }
+.plan-cta-btn:disabled:hover { transform: none; box-shadow: none; }
+
+/* ===================================================================
+   18. ACTIVE PLAN BADGE
+   =================================================================== */
+
+.plan-active-badge {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 13px 20px; border-radius: var(--radius-md);
+  font-size: 14px; font-weight: 700;
+  background: var(--green-pale); color: var(--green);
+  border: 2px solid rgba(76, 175, 80, 0.2);
+  font-family: 'Outfit', sans-serif; letter-spacing: 0.2px;
+  margin-top: auto; min-height: 46px;
+}
+
+/* ===================================================================
+   19. SUBSCRIPTION INFO
+   =================================================================== */
+
+.plan-subscription-info {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-top: 10px; padding: 10px 12px;
+  background: rgba(76, 175, 80, 0.05); border: 1px solid rgba(76, 175, 80, 0.1);
+  border-radius: var(--radius-sm); position: relative; z-index: 1;
+}
+
+.plan-card.pro .plan-subscription-info { background: rgba(76, 175, 80, 0.08); border-color: rgba(76, 175, 80, 0.15); }
+
+.plan-subscription-row { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--ink-muted); font-family: 'JetBrains Mono', monospace; line-height: 1.4; }
+.plan-card.pro .plan-subscription-row { color: var(--sand-mid); }
+
+/* ===================================================================
+   20. PLAN NOTE
+   =================================================================== */
+
+.plan-note { font-size: 10px; color: var(--sand-mid); margin-top: 10px; font-family: 'JetBrains Mono', monospace; position: relative; z-index: 1; }
+
+/* ===================================================================
+   21. COMPARISON TABLE
+   =================================================================== */
+
+.membership-comparison { padding: 60px 0; background: var(--cream); border-bottom: 1px solid var(--sand-mid); }
+@media (min-width: 480px) { .membership-comparison { padding: 80px 0; } }
+@media (min-width: 768px) { .membership-comparison { padding: 100px 0; } }
+
+.comparison-table-wrap {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  background: var(--white); border: 1px solid var(--sand-mid);
+  border-radius: var(--radius-lg); max-width: 750px; margin: 0 auto;
+}
+
+@media (min-width: 480px) { .comparison-table-wrap { border-radius: var(--radius-xl); } }
+
+.comparison-table { width: 100%; border-collapse: collapse; min-width: 500px; }
+.comparison-table thead { background: var(--sand-light); }
+
+.comparison-table th {
+  text-align: left; padding: 14px 20px;
+  font-size: 10px; font-weight: 600; color: var(--ink-muted);
+  letter-spacing: 1.5px; text-transform: uppercase;
+  font-family: 'JetBrains Mono', monospace; border-bottom: 1px solid var(--sand-mid);
+}
+
+@media (min-width: 480px) { .comparison-table th { padding: 16px 24px; font-size: 11px; } }
+.comparison-table th:first-child { font-weight: 700; color: var(--ink); }
+
+.comparison-table td { padding: 12px 20px; font-size: 13px; color: var(--ink-muted); border-bottom: 1px solid var(--sand-light); }
+@media (min-width: 480px) { .comparison-table td { padding: 14px 24px; font-size: 14px; } }
+.comparison-table tr:last-child td { border-bottom: none; }
+.comparison-table tbody tr:hover { background: var(--cream); }
+
+.feature-name { font-weight: 600; color: var(--ink); }
+.starter-col { color: #6A8C78; font-weight: 600; }
+.pro-col { color: var(--terra); font-weight: 700; }
+
+/* ===================================================================
+   22. ADDITIONAL FEATURES
+   =================================================================== */
+
+.membership-features { padding: 60px 0; background: var(--sand-light); border-bottom: 1px solid var(--sand-mid); }
+@media (min-width: 480px) { .membership-features { padding: 80px 0; } }
+@media (min-width: 768px) { .membership-features { padding: 100px 0; } }
+
+.membership-features-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+@media (min-width: 480px) { .membership-features-grid { gap: 20px; } }
+@media (min-width: 768px) { .membership-features-grid { grid-template-columns: repeat(2, 1fr); gap: 24px; } }
+@media (min-width: 1024px) { .membership-features-grid { grid-template-columns: repeat(3, 1fr); gap: 28px; } }
+
+.feature-item {
+  padding: 24px; background: var(--white); border: 1.5px solid var(--sand-mid);
+  border-radius: var(--radius-md); transition: all 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+@media (min-width: 480px) { .feature-item { padding: 28px; border-radius: var(--radius-lg); } }
+
+.feature-item:hover { border-color: rgba(196, 94, 58, 0.22); transform: translateY(-3px); box-shadow: 0 8px 24px rgba(26, 21, 16, 0.08); }
+
+.feature-item .feature-icon-wrap {
+  width: 44px; height: 44px; border-radius: var(--radius-sm);
+  background: var(--terra-pale); border: 1px solid rgba(196, 94, 58, 0.15);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--terra); margin-bottom: 14px; transition: all 0.25s;
+}
+
+@media (min-width: 480px) { .feature-item .feature-icon-wrap { width: 52px; height: 52px; border-radius: var(--radius-md); margin-bottom: 18px; } }
+
+.feature-item:hover .feature-icon-wrap { background: var(--terra-glow); border-color: rgba(196, 94, 58, 0.25); box-shadow: 0 0 20px rgba(196, 94, 58, 0.12); }
+
+.feature-item h4 { font-size: 15px; font-weight: 700; margin: 0 0 8px; color: var(--ink); letter-spacing: -0.15px; }
+@media (min-width: 480px) { .feature-item h4 { font-size: 17px; } }
+
+.feature-item p { font-size: 13px; color: var(--ink-muted); line-height: 1.55; margin: 0; }
+@media (min-width: 480px) { .feature-item p { font-size: 14px; } }
+
+/* ===================================================================
+   23. FINAL CTA
+   =================================================================== */
+
+.membership-cta { padding: 60px 0; background: var(--cream); }
+@media (min-width: 480px) { .membership-cta { padding: 80px 0; } }
+@media (min-width: 768px) { .membership-cta { padding: 100px 0; } }
+
+.cta-content { text-align: center; max-width: 600px; margin: 0 auto; }
+
+.cta-icon { width: 72px; height: 72px; border-radius: 50%; background: var(--terra-pale); border: 2px solid rgba(196, 94, 58, 0.2); display: flex; align-items: center; justify-content: center; color: var(--terra); margin: 0 auto 24px; }
+@media (min-width: 480px) { .cta-icon { width: 88px; height: 88px; margin-bottom: 32px; } }
+
+.cta-heading { font-family: 'Playfair Display', Georgia, serif; font-size: 26px; font-weight: 900; letter-spacing: -0.03em; margin: 0 0 16px; color: var(--ink); line-height: 1.15; }
+@media (min-width: 480px) { .cta-heading { font-size: 34px; margin-bottom: 20px; } }
+@media (min-width: 768px) { .cta-heading { font-size: 42px; } }
+
+.cta-desc { font-size: 14px; color: var(--ink-muted); line-height: 1.6; margin: 0 0 28px; }
+@media (min-width: 480px) { .cta-desc { font-size: 16px; margin-bottom: 36px; } }
+
+.cta-buttons { display: flex; justify-content: center; margin-bottom: 16px; }
+.cta-note { font-size: 9px; color: var(--ink-muted); font-family: 'JetBrains Mono', monospace; opacity: 0.6; }
+@media (min-width: 480px) { .cta-note { font-size: 10.5px; } }
+
+/* ===================================================================
+   24. FOOTER
+   =================================================================== */
+
+.footer { padding: 24px 0; border-top: 1px solid var(--sand-mid); background: var(--cream); }
+@media (min-width: 480px) { .footer { padding: 34px 0; } }
+
+.footer-inner { display: flex; flex-direction: column; gap: 10px; align-items: center; text-align: center; }
+@media (min-width: 768px) { .footer-inner { flex-direction: row; justify-content: space-between; gap: 0; text-align: left; } }
+
+.footer-brand { display: flex; align-items: center; gap: 6px; font-family: 'Playfair Display', Georgia, serif; font-size: 14px; font-weight: 700; color: var(--ink); letter-spacing: -0.2px; }
+@media (min-width: 480px) { .footer-brand { gap: 8px; font-size: 16px; } }
+.footer-brand svg { color: var(--terra); }
+
+.footer-copy { font-size: 10px; color: var(--ink-muted); }
+@media (min-width: 480px) { .footer-copy { font-size: 12px; } }
+
+.footer-links { display: flex; gap: 14px; flex-wrap: wrap; justify-content: center; }
+@media (min-width: 480px) { .footer-links { gap: 22px; } }
+
+.footer-links a { font-size: 11px; color: var(--ink-muted); text-decoration: none; transition: color 0.15s; font-weight: 500; }
+@media (min-width: 480px) { .footer-links a { font-size: 13px; } }
+.footer-links a:hover { color: var(--terra); }
+
+/* ===================================================================
+   25. SCROLLBAR
+   =================================================================== */
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--cream); }
+::-webkit-scrollbar-thumb { background: var(--sand-dark); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
+* { scrollbar-width: thin; scrollbar-color: var(--sand-dark) var(--cream); }
+
+/* ===================================================================
+   26. SELECTION
+   =================================================================== */
+
+::selection { background: rgba(196, 94, 58, 0.2); color: var(--ink); }
+
+/* ===================================================================
+   27. FOCUS VISIBLE
+   =================================================================== */
+
+:focus-visible { outline: 2px solid var(--terra); outline-offset: 2px; }
+button:focus:not(:focus-visible) { outline: none; }
+
+/* ===================================================================
+   28. REDUCED MOTION
+   =================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms; animation-iteration-count: 1; transition-duration: 0.01ms; }
+}
+
+/* ===================================================================
+   29. PRINT STYLES
+   =================================================================== */
+
+@media print {
+  .navbar, .membership-hero, .membership-cta, .footer, .cta-buttons { display: none; }
+  .plan-card { break-inside: avoid; box-shadow: none; }
+}

@@ -1,0 +1,109 @@
+/* Settings Tab Styles */
+
+.settings-tab {
+  max-width: 720px;
+}
+
+.dash-settings-form {
+  background: var(--white);
+  border: 1px solid var(--sand-mid);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+}
+
+@media (max-width: 767px) {
+  .dash-settings-form {
+    padding: 24px;
+  }
+}
+
+.dash-settings-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.dash-settings-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 4px;
+  color: var(--ink);
+}
+
+.dash-settings-desc {
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin: 0;
+}
+
+.dash-settings-header-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.dash-settings-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+.dash-settings-badge-unsaved {
+  background: var(--yellow-pale);
+  color: #F57C00;
+  border: 1px solid rgba(255, 167, 38, 0.2);
+}
+
+.dash-settings-badge-saved {
+  background: var(--green-pale);
+  color: var(--green);
+  border: 1px solid rgba(76, 175, 80, 0.2);
+  animation: fadeIn 0.3s ease;
+}
+
+.dash-form-input-disabled {
+  background: var(--sand-light);
+  color: var(--ink-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.dash-settings-hint {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-muted);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.dash-settings-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--sand-light);
+  margin-top: 8px;
+}
+
+@media (max-width: 480px) {
+  .dash-settings-actions {
+    flex-direction: column-reverse;
+  }
+
+  .dash-settings-actions .dash-btn-primary,
+  .dash-settings-actions .dash-btn-secondary {
+    width: 100%;
+    justify-content: center;
+  }
+}

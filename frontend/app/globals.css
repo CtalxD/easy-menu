@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,800;0,900;1,400;1,700&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+:root {
+  /* Core palette */
+  --ink:        #1A1510;
+  --ink-soft:   #2E2720;
+  --ink-muted:  #5C5248;
+  --sand:       #F5EFE3;
+  --sand-deep:  #EDE4D3;
+  --sand-mid:   #D9CEBD;
+  --cream:      #FAF6EF;
+  --terra:      #C45E3A;
+  --terra-light:#D97A5A;
+  --terra-pale: rgba(196, 94, 58, 0.10);
+  --terra-glow: rgba(196, 94, 58, 0.16);
+  --gold:       #A8874A;
+  --gold-pale:  rgba(168, 135, 74, 0.12);
+  --sage:       #6A8C78;
+  --sage-pale:  rgba(106, 140, 120, 0.12);
+  --white:      #FFFFFF;
+
+  /* Phone colors */
+  --phone-shell:  #1A1510;
+  --phone-ring:   #2E2720;
+  --phone-screen: #FFFFFF;
+  --phone-text:   #1A1510;
+  --phone-muted:  #8C8279;
+  --phone-line:   #EDE4D3;
+
+  /* Radius */
+  --radius-sm:  8px;
+  --radius-md:  14px;
+  --radius-lg:  22px;
+  --radius-xl:  32px;
+
+  /* Shadows */
+  --shadow-card: 0 2px 20px rgba(26,21,16,0.08), 0 8px 40px rgba(26,21,16,0.06);
+  --shadow-float: 0 20px 60px rgba(26,21,16,0.18), 0 4px 16px rgba(26,21,16,0.10);
+  --shadow-phone: 0 40px 100px rgba(26,21,16,0.30), 0 8px 32px rgba(26,21,16,0.14);
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  -moz-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  width: 100%;
+  min-height: 100vh;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
+}
+
+input, textarea, select {
+  font-family: inherit;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: var(--cream); }
+::-webkit-scrollbar-thumb { background: var(--sand-mid); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-muted); }
+
+/* Container utility */
+.container {
+  width: 100%;
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+@media (min-width: 480px) {
+  .container { padding: 0 24px; }
+}
+
+@media (min-width: 768px) {
+  .container { padding: 0 32px; }
+}
+
+@media (min-width: 1024px) {
+  .container { padding: 0 36px; }
+}

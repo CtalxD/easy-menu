@@ -1,0 +1,170 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Plan {
+  FREE
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+enum DeviceType {
+  MOBILE
+  TABLET
+  DESKTOP
+  UNKNOWN
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  password  String
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restaurants        Restaurant[]
+  verificationTokens VerificationToken[]
+}
+
+model Restaurant {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  address     String?
+  phone       String?
+  email       String?
+  logo        String?
+  plan        Plan     @default(FREE)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  qrSettings  String?
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id])
+
+  menuItems     MenuItem[]
+  categories    Category[]
+  subscriptions Subscription[]
+  menuViews     MenuView[]
+  locations     Location[]
+  schedules     MenuSchedule[]
+}
+
+model Location {
+  id           String   @id @default(uuid())
+  name         String
+  address      String?
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+
+  menuItems  MenuItem[]
+  categories Category[]
+}
+
+model Category {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  locationId   String?
+  location     Location?  @relation(fields: [locationId], references: [id])
+
+  menuItems MenuItem[]
+}
+
+model MenuItem {
+  id           String   @id @default(uuid())
+  name         String
+  description  String?
+  price        Float
+  image        String?
+  status       String   @default("available")
+  popular      Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  
+  categoryId   String?
+  category     Category?  @relation(fields: [categoryId], references: [id])
+
+  locationId   String?
+  location     Location?  @relation(fields: [locationId], references: [id])
+}
+
+model Subscription {
+  id            String        @id @default(uuid())
+  plan          Plan
+  price         Float
+  billingCycle  BillingCycle  @default(MONTHLY)
+  paymentStatus PaymentStatus @default(PENDING)
+  startDate     DateTime
+  endDate       DateTime
+  purchasedAt   DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  restaurantId  String
+  restaurant    Restaurant    @relation(fields: [restaurantId], references: [id])
+}
+
+model MenuView {
+  id           String     @id @default(uuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+  locationId   String?
+  deviceType   DeviceType @default(UNKNOWN)
+  viewedAt     DateTime   @default(now())
+  
+  @@index([restaurantId])
+  @@index([viewedAt])
+  @@index([restaurantId, viewedAt])
+}
+
+model MenuSchedule {
+  id           String    @id @default(uuid())
+  name         String
+  description  String?
+  scheduledAt  DateTime
+  appliedAt    DateTime?
+  status       String    @default("pending")
+  action       String
+  payload      String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id])
+}
+
+model VerificationToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}
