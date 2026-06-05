@@ -1,3 +1,4 @@
+//frontend/app/membership/page.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -372,7 +373,7 @@ export default function MembershipPage() {
           <div className="nav-right" suppressHydrationWarning>
             {!mounted ? (
               <>
-                <Link href="/membership" className="nav-link">Membership</Link>
+                <Link href="/membership" className="nav-link active">Membership</Link>
                 <Link href="/login" className="nav-link">Sign in</Link>
                 <Link href="/signup" className="nav-cta">Get started</Link>
               </>
@@ -384,14 +385,14 @@ export default function MembershipPage() {
                       <LayoutDashboard size={16} strokeWidth={1.5} />
                       Dashboard
                     </Link>
-                    <Link href="/membership" className="nav-link">Membership</Link>
+                    <Link href="/membership" className="nav-link active">Membership</Link>
                     <span className="nav-user-greeting">
                       {user.restaurant?.name || user.name}
                     </span>
                   </>
                 ) : (
                   <>
-                    <Link href="/membership" className="nav-link">Membership</Link>
+                    <Link href="/membership" className="nav-link active">Membership</Link>
                     <Link href="/login" className="nav-link">Sign in</Link>
                     <Link href="/signup" className="nav-cta">Get started</Link>
                   </>
@@ -623,14 +624,22 @@ export default function MembershipPage() {
       <footer className="footer" suppressHydrationWarning>
         <div className="container footer-inner" suppressHydrationWarning>
           <div className="footer-brand" suppressHydrationWarning>
-            <QrCode size={17} strokeWidth={2} />
-            <span>EasyMenu</span>
+            <div className="footer-logo">
+              <QrCode size={17} strokeWidth={2} />
+              <span>EasyMenu</span>
+            </div>
+            <p className="footer-tagline">Digital menus for restaurants.</p>
           </div>
-          <p className="footer-copy">Digital menus for every restaurants.</p>
           <div className="footer-links" suppressHydrationWarning>
             <a href="mailto:easymenunepal@gmail.com">Contact</a>
-            <a href="#">Privacy</a>
-            <a href="#">Terms</a>
+            <span className="footer-link-separator">-</span>
+            <a href="#">Privacy Policy</a>
+            <span className="footer-link-separator">-</span>
+            <a href="#">Terms of Service</a>
+          </div>
+          <div className="footer-bottom" suppressHydrationWarning>
+            <a href="mailto:easymenunepal@gmail.com" className="footer-email">easymenunepal@gmail.com</a>
+            <p className="footer-copy">© 2026 EasyMenu. All rights reserved.</p>
           </div>
         </div>
       </footer>

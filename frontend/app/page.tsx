@@ -1,3 +1,4 @@
+//frontend/app/page.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -1046,14 +1047,22 @@ export default function LandingPage() {
       <footer className="footer">
         <div className="container footer-inner">
           <div className="footer-brand">
-            <QrCode size={17} strokeWidth={2} />
-            <span>EasyMenu</span>
+            <div className="footer-logo">
+              <QrCode size={17} strokeWidth={2} />
+              <span>EasyMenu</span>
+            </div>
+            <p className="footer-tagline">Digital menus for restaurants.</p>
           </div>
-          <p className="footer-copy">Digital menus for every restaurants.</p>
           <div className="footer-links">
             <a href="mailto:easymenunepal@gmail.com">Contact</a>
-            <a href="#">Privacy</a>
-            <a href="#">Terms</a>
+            <span className="footer-link-separator">-</span>
+            <a href="#">Privacy Policy</a>
+            <span className="footer-link-separator">-</span>
+            <a href="#">Terms of Service</a>
+          </div>
+          <div className="footer-bottom">
+            <a href="mailto:easymenunepal@gmail.com" className="footer-email">easymenunepal@gmail.com</a>
+            <p className="footer-copy">© 2026 EasyMenu. All rights reserved.</p>
           </div>
         </div>
       </footer>
