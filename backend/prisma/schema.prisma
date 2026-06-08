@@ -168,3 +168,15 @@ model VerificationToken {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
 }
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  email     String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  used      Boolean  @default(false)
+  
+  @@index([token])
+  @@index([email])
+}

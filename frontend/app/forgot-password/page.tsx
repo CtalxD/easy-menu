@@ -1,28 +1,79 @@
-//frontend/app/forgot-password/page.tsx
+// frontend/app/forgot-password/page.tsx
+
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { QrCode, Mail, ArrowRight, ArrowLeft, Zap, Smartphone, LayoutDashboard, Star, Users, CheckCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "../contexts/AuthContext";
+import { QrCode, Mail, ArrowRight, ArrowLeft, Zap, Smartphone, LayoutDashboard, CheckCircle } from "lucide-react";
 import "./forgot-password.css";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+
 export default function ForgotPasswordPage() {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState(false);
+  const [verifiedEmail, setVerifiedEmail] = useState("");
+  const [testOTP, setTestOTP] = useState<string | undefined>(undefined);
+
+  // Redirect if already logged in (same as login page)
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace("/dashboard");
+    }
+  }, [user, authLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 404) {
+          throw new Error('No account found with this email address');
+        }
+        throw new Error(data.message || 'Something went wrong');
+      }
+
+      setVerifiedEmail(email);
+      setTestOTP(data.testOTP);
       setSent(true);
-      console.log("Password reset email sent to:", email);
-    }, 1000);
+      
+      // If test OTP is provided, show it in console for development
+      if (data.testOTP) {
+        console.log('Test OTP:', data.testOTP);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to send OTP');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const handleGoToOTP = () => {
+    router.push(`/verify-otp?email=${encodeURIComponent(verifiedEmail)}`);
+  };
+
+  // Don't render anything while checking auth or if user is logged in
+  if (authLoading || user) {
+    return null;
+  }
 
   return (
     <div className="forgot-root">
@@ -37,7 +88,7 @@ export default function ForgotPasswordPage() {
           <div className="forgot-brand-content">
             <h1>Reset your password</h1>
             <p className="forgot-brand-desc">
-              Don&apos;t worry, it happens to the best of us. Enter your email and we&apos;ll send you a reset link.
+              Don&apos;t worry, it happens to the best of us. Enter your email and we&apos;ll send you an OTP to reset your password.
             </p>
 
             <div className="forgot-features">
@@ -46,8 +97,8 @@ export default function ForgotPasswordPage() {
                   <Zap size={16} strokeWidth={1.5} />
                 </div>
                 <div className="forgot-feature-text">
-                  <span className="forgot-feature-title">Instant Email</span>
-                  <span className="forgot-feature-desc">Reset link arrives in seconds</span>
+                  <span className="forgot-feature-title">Instant OTP</span>
+                  <span className="forgot-feature-desc">6-digit code arrives in seconds</span>
                 </div>
               </div>
               <div className="forgot-feature-item">
@@ -55,8 +106,8 @@ export default function ForgotPasswordPage() {
                   <Smartphone size={16} strokeWidth={1.5} />
                 </div>
                 <div className="forgot-feature-text">
-                  <span className="forgot-feature-title">Secure Process</span>
-                  <span className="forgot-feature-desc">Link expires in 1 hour for safety</span>
+                  <span className="forgot-feature-title">Secure Verification</span>
+                  <span className="forgot-feature-desc">OTP expires in 10 minutes</span>
                 </div>
               </div>
               <div className="forgot-feature-item">
@@ -66,45 +117,6 @@ export default function ForgotPasswordPage() {
                 <div className="forgot-feature-text">
                   <span className="forgot-feature-title">Quick Recovery</span>
                   <span className="forgot-feature-desc">Back to your dashboard in no time</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="forgot-stats">
-              <div className="forgot-stat-item">
-                <div className="forgot-stat-icon">
-                  <Users size={15} strokeWidth={1.5} />
-                </div>
-                <div>
-                  <div className="forgot-stat-number">200+</div>
-                  <div className="forgot-stat-label">Restaurants</div>
-                </div>
-              </div>
-              <div className="forgot-stat-item">
-                <div className="forgot-stat-icon">
-                  <Star size={15} strokeWidth={1.5} />
-                </div>
-                <div>
-                  <div className="forgot-stat-number">4.9</div>
-                  <div className="forgot-stat-label">Rating</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="forgot-testimonial">
-              <div className="forgot-testimonial-stars">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={13} fill="#C45E3A" color="#C45E3A" />
-                ))}
-              </div>
-              <p className="forgot-testimonial-text">
-                &ldquo;I forgot my password during dinner rush. The reset link arrived instantly and I was back in 2 minutes.&rdquo;
-              </p>
-              <div className="forgot-testimonial-author">
-                <div className="forgot-testimonial-avatar"></div>
-                <div>
-                  <div className="forgot-testimonial-name">Rajesh Tamang</div>
-                  <div className="forgot-testimonial-role">Thakali Kitchen, Lakeside</div>
                 </div>
               </div>
             </div>
@@ -121,7 +133,7 @@ export default function ForgotPasswordPage() {
                     <Mail size={20} strokeWidth={1.5} />
                   </div>
                   <h2>Forgot password?</h2>
-                  <p>Enter your email to receive a reset link</p>
+                  <p>Enter your email to receive an OTP</p>
                 </div>
 
                 {error && <div className="forgot-error">{error}</div>}
@@ -138,6 +150,7 @@ export default function ForgotPasswordPage() {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         required
+                        disabled={loading}
                       />
                     </div>
                   </div>
@@ -148,10 +161,10 @@ export default function ForgotPasswordPage() {
                     disabled={loading}
                   >
                     {loading ? (
-                      <>Sending link...</>
+                      <>Sending OTP...</>
                     ) : (
                       <>
-                        Send reset link
+                        Send OTP
                         <ArrowRight size={17} strokeWidth={2.5} />
                       </>
                     )}
@@ -163,31 +176,42 @@ export default function ForgotPasswordPage() {
                 <div className="forgot-form-icon forgot-success-icon-wrap">
                   <CheckCircle size={24} strokeWidth={1.5} />
                 </div>
-                <h2>Check your inbox</h2>
+                <h2>OTP sent!</h2>
                 <p className="forgot-success-text">
-                  We&apos;ve sent a password reset link to
+                  We&apos;ve sent a 6-digit OTP to
                 </p>
-                <p className="forgot-success-email">{email}</p>
+                <p className="forgot-success-email">{verifiedEmail}</p>
+                {testOTP && process.env.NODE_ENV !== 'production' && (
+                  <div className="forgot-test-otp" style={{
+                    background: '#FEF2F0',
+                    padding: '8px 12px',
+                    borderRadius: '8px',
+                    marginTop: '12px',
+                    fontSize: '12px',
+                    color: '#C45E3A'
+                  }}>
+                    <strong>Test OTP:</strong> {testOTP}
+                  </div>
+                )}
                 <p className="forgot-success-hint">
                   Didn&apos;t receive it? Check spam or{" "}
                   <button
                     onClick={() => {
                       setSent(false);
                       setError("");
+                      setEmail("");
                     }}
                     className="forgot-resend-btn"
                   >
-                    try another email
+                    try again
                   </button>
                 </p>
                 <button
-                  onClick={() => {
-                    setSent(false);
-                    setError("");
-                  }}
+                  onClick={handleGoToOTP}
                   className="forgot-submit-btn forgot-resend-full"
                 >
-                  Send again
+                  Enter OTP
+                  <ArrowRight size={17} strokeWidth={2.5} />
                 </button>
               </div>
             )}
