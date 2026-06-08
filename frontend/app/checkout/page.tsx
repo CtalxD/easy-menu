@@ -481,7 +481,7 @@ function CheckoutContent() {
                     ) : (
                       <>
                         <Lock size={16} strokeWidth={2} />
-                        Pay ${price} — {billingCycle === "yearly" ? "Yearly" : "Monthly"}
+                        Pay ${price} - {billingCycle === "yearly" ? "Yearly" : "Monthly"}
                       </>
                     )}
                   </button>

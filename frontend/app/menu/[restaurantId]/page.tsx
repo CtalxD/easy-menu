@@ -390,7 +390,7 @@ export default function PublicMenuPage() {
                   <option value="">All Locations</option>
                   {locations.map((loc) => (
                     <option key={loc.id} value={loc.id}>
-                      {loc.name}{loc.address ? ` — ${loc.address}` : ""}
+                      {loc.name}{loc.address ? ` - ${loc.address}` : ""}
                     </option>
                   ))}
                 </select>

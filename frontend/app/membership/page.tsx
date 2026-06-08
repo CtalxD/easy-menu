@@ -608,7 +608,7 @@ export default function MembershipPage() {
                 Ready to upgrade your menu experience?
               </h2>
               <p className="cta-desc">
-                Create beautiful digital menus that your customers will love. Start your free trial today — no credit card required.
+                Create beautiful digital menus that your customers will love. Start your free trial today - no credit card required.
               </p>
               <div className="cta-buttons" suppressHydrationWarning>
                 <Link href="/signup" className="btn-primary btn-large">

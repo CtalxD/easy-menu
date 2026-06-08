@@ -404,7 +404,7 @@ export default function DemoMenuPage() {
                           <h3 className="dm-item-name">{item.name}</h3>
                           <span className="dm-item-dots" />
                           <span className="dm-item-price">
-                            {item.soldOut ? "—" : `Rs. ${item.price}`}
+                            {item.soldOut ? "-" : `Rs. ${item.price}`}
                           </span>
                         </div>
                         
