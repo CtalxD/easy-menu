@@ -1,4 +1,4 @@
-//frontend/app/page.tsx
+// frontend/app/page.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -1018,7 +1018,7 @@ export default function LandingPage() {
               Replace your paper menu in 5 minutes
             </h2>
             <p className="cta-desc">
-              Walk into any café with a QR code demo. Watch their reaction when
+              Walk into any cafe with a QR code demo. Watch their reaction when
               they realize they'll never print a menu again.
             </p>
             {!mounted && (
@@ -1043,7 +1043,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* FOOTER */}
+      {/* FOOTER - UPDATED WITH PROPER LINKS */}
       <footer className="footer">
         <div className="container footer-inner">
           <div className="footer-brand">
@@ -1054,11 +1054,11 @@ export default function LandingPage() {
             <p className="footer-tagline">Digital menus for restaurants.</p>
           </div>
           <div className="footer-links">
+            <Link href="/privacy-policy">Privacy Policy</Link>
+            <span className="footer-link-separator">-</span>
+            <Link href="/terms-of-service">Terms of Service</Link>
+            <span className="footer-link-separator">-</span>
             <a href="mailto:easymenunepal@gmail.com">Contact</a>
-            <span className="footer-link-separator">-</span>
-            <a href="#">Privacy Policy</a>
-            <span className="footer-link-separator">-</span>
-            <a href="#">Terms of Service</a>
           </div>
           <div className="footer-bottom">
             <a href="mailto:easymenunepal@gmail.com" className="footer-email">easymenunepal@gmail.com</a>
