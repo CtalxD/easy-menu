@@ -1,4 +1,5 @@
-//backend/src/controllers/menuController.ts
+// backend/src/controllers/menuController.ts
+
 import { Request, Response } from 'express';
 import { PrismaClient, Plan, PaymentStatus, BillingCycle } from '@prisma/client';
 import QRCode from 'qrcode';
@@ -282,6 +283,74 @@ export const upgradePlan = async (req: Request, res: Response): Promise<void> =>
     const restaurant = user.restaurants[0];
     const currentPlan = restaurant.plan;
 
+    // Check if user already has a PENDING subscription for the same plan
+    const existingPendingSubscription = await prisma.subscription.findFirst({
+      where: {
+        restaurantId: restaurant.id,
+        plan: plan as Plan,
+        paymentStatus: 'PENDING',
+      },
+    });
+
+    if (existingPendingSubscription) {
+      res.status(400).json({
+        message: `You already have a pending upgrade request for the ${plan} plan. Please wait for admin approval before submitting another request.`,
+        code: 'PENDING_REQUEST_EXISTS',
+        existingSubscription: {
+          id: existingPendingSubscription.id,
+          plan: existingPendingSubscription.plan,
+          price: existingPendingSubscription.price,
+          billingCycle: existingPendingSubscription.billingCycle,
+          paymentStatus: existingPendingSubscription.paymentStatus,
+          purchasedAt: existingPendingSubscription.purchasedAt,
+        },
+      });
+      return;
+    }
+
+    // Check if user is already on the requested plan
+    if (currentPlan === plan) {
+      res.status(400).json({
+        message: `You are already on the ${plan} plan.`,
+        code: 'ALREADY_ON_PLAN',
+      });
+      return;
+    }
+
+    // Check if trying to downgrade while subscription is active
+    const planOrder = ['FREE', 'STARTER', 'PRO', 'ENTERPRISE'];
+    const currentIndex = planOrder.indexOf(currentPlan);
+    const requestedIndex = planOrder.indexOf(plan);
+
+    if (requestedIndex < currentIndex) {
+      // Trying to downgrade
+      const activeSubscription = await prisma.subscription.findFirst({
+        where: {
+          restaurantId: restaurant.id,
+          paymentStatus: 'COMPLETED',
+          endDate: { gt: new Date() },
+        },
+        orderBy: { endDate: 'desc' },
+      });
+
+      if (activeSubscription && plan === 'FREE') {
+        res.status(400).json({
+          message: `Your ${currentPlan} plan is still active until ${activeSubscription.endDate.toISOString().split('T')[0]}. You can only switch to FREE plan after your current subscription expires.`,
+          code: 'SUBSCRIPTION_ACTIVE',
+          subscriptionEndDate: activeSubscription.endDate,
+        });
+        return;
+      }
+
+      if (activeSubscription && plan !== 'FREE') {
+        res.status(400).json({
+          message: `You cannot downgrade from ${currentPlan} to ${plan} while your subscription is active.`,
+          code: 'CANNOT_DOWNGRADE',
+        });
+        return;
+      }
+    }
+
     const startDate = new Date();
     const endDate = new Date();
     if (billingCycle === 'yearly') {
@@ -290,33 +359,27 @@ export const upgradePlan = async (req: Request, res: Response): Promise<void> =>
       endDate.setMonth(endDate.getMonth() + 1);
     }
 
+    // Create subscription with PENDING status - requires admin approval
     const subscription = await prisma.subscription.create({
       data: {
         plan: plan as Plan,
         price,
         billingCycle: cycle as BillingCycle,
-        paymentStatus: 'COMPLETED' as PaymentStatus,
+        paymentStatus: 'PENDING' as PaymentStatus,
         startDate,
         endDate,
         restaurantId: restaurant.id,
       },
     });
 
-    const updatedRestaurant = await prisma.restaurant.update({
-      where: { id: restaurant.id },
-      data: { plan: plan as Plan },
-    });
+    // DO NOT update restaurant plan yet - wait for admin approval
 
-    const limits = PLAN_LIMITS[plan] || { items: 10, categories: 5 };
+    const limits = PLAN_LIMITS[restaurant.plan] || { items: 10, categories: 5 };
     const itemCount = await prisma.menuItem.count({ where: { restaurantId: restaurant.id } });
     const categoryCount = await prisma.category.count({ where: { restaurantId: restaurant.id } });
 
-    const diffTime = endDate.getTime() - startDate.getTime();
-    const daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
     res.json({
-      message: `Successfully upgraded to ${plan} plan!`,
-      plan: updatedRestaurant.plan,
+      message: `Your upgrade request to ${plan} plan has been submitted and is pending approval. You will be notified once approved.`,
       previousPlan: currentPlan,
       subscription: {
         id: subscription.id,
@@ -327,21 +390,18 @@ export const upgradePlan = async (req: Request, res: Response): Promise<void> =>
         startDate: subscription.startDate,
         endDate: subscription.endDate,
         purchasedAt: subscription.purchasedAt,
-        daysRemaining,
-        status: 'active',
+        status: 'pending',
       },
       planInfo: {
-        plan: updatedRestaurant.plan,
+        plan: restaurant.plan,
         itemCount,
         itemLimit: limits.items,
         itemRemaining: Math.max(0, limits.items - itemCount),
         categoryCount,
         categoryLimit: limits.categories,
         categoryRemaining: Math.max(0, limits.categories - categoryCount),
-        isFree: false,
-        hasWatermark: false,
-        isNearItemLimit: false,
-        isNearCategoryLimit: false,
+        isFree: restaurant.plan === 'FREE',
+        hasWatermark: restaurant.plan === 'FREE',
       },
     });
   } catch (error) {
