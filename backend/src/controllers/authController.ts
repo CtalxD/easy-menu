@@ -110,6 +110,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         id: user.id,
         name: user.name,
         email: user.email,
+         admin: user.admin,
         restaurant: user.restaurants[0]
       }
     });
