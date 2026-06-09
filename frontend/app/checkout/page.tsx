@@ -4,6 +4,7 @@
 
 import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import Image from "next/image";
 import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
 import {
@@ -12,8 +13,6 @@ import {
   QrCode,
   Check,
   Shield,
-  CreditCard,
-  Lock,
   Building2,
   Coffee,
   Crown,
@@ -21,6 +20,8 @@ import {
   Loader2,
   LayoutDashboard,
   AlertCircle,
+  Wallet,
+  Clock,
 } from "lucide-react";
 import "./checkout.css";
 
@@ -43,25 +44,20 @@ function CheckoutContent() {
   const planParam = searchParams.get("plan") || "pro";
   const [mounted, setMounted] = useState(false);
   const [processing, setProcessing] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<string>("card");
+  const [paymentMethod, setPaymentMethod] = useState<string>("esewa");
   const [billingCycle, setBillingCycle] = useState<"monthly" | "yearly">("monthly");
-  const [cardNumber, setCardNumber] = useState("");
-  const [cardName, setCardName] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [cvc, setCvc] = useState("");
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [currency, setCurrency] = useState<string>("NPR");
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [upgradeError, setUpgradeError] = useState("");
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login");
-    }
-  }, [user, loading, router]);
+  const [currentPlanInfo, setCurrentPlanInfo] = useState<any>(null);
+  const [planInfoLoading, setPlanInfoLoading] = useState(true);
+  const [hasPendingRequest, setHasPendingRequest] = useState(false);
+  const [pendingRequestDetails, setPendingRequestDetails] = useState<any>(null);
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({
+    USD: 1,
+    NPR: 133.50,
+  });
+  const [ratesLoading, setRatesLoading] = useState(true);
 
   const planDetails: Record<string, PlanDetails> = {
     starter: {
@@ -123,57 +119,119 @@ function CheckoutContent() {
   };
 
   const currentPlan: PlanDetails = planDetails[planParam] || planDetails.pro;
-  const price = billingCycle === "yearly" ? currentPlan.yearlyPrice : currentPlan.monthlyPrice;
+
+  useEffect(() => {
+    setMounted(true);
+    fetchExchangeRates();
+  }, []);
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    if (user) {
+      checkPendingRequestForPlan();
+    }
+  }, [user, planParam]);
+
+  const fetchExchangeRates = async () => {
+    try {
+      const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+      if (response.ok) {
+        const data = await response.json();
+        setExchangeRates({
+          USD: 1,
+          NPR: data.rates.NPR || 133.50,
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching exchange rates:', error);
+      setExchangeRates({
+        USD: 1,
+        NPR: 133.50,
+      });
+    } finally {
+      setRatesLoading(false);
+    }
+  };
+
+  const checkPendingRequestForPlan = async () => {
+    setPlanInfoLoading(true);
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        setPlanInfoLoading(false);
+        return;
+      }
+
+      const subscriptionResponse = await fetch(`${API_URL}/api/menu/subscription/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (subscriptionResponse.ok) {
+        const subscriptionData = await subscriptionResponse.json();
+        const selectedPlanKey = planDetails[planParam]?.planKey || 'PRO';
+        
+        if (subscriptionData.latestSubscription && 
+            subscriptionData.latestSubscription.paymentStatus === 'PENDING' &&
+            subscriptionData.latestSubscription.plan === selectedPlanKey) {
+          setHasPendingRequest(true);
+          setPendingRequestDetails(subscriptionData.latestSubscription);
+        } else {
+          setHasPendingRequest(false);
+          setPendingRequestDetails(null);
+        }
+      }
+
+      const planResponse = await fetch(`${API_URL}/api/menu/plan/info`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (planResponse.ok) {
+        const planData = await planResponse.json();
+        setCurrentPlanInfo(planData);
+      }
+    } catch (error) {
+      console.error('Error checking pending request:', error);
+    } finally {
+      setPlanInfoLoading(false);
+    }
+  };
+
+  const priceUSD = billingCycle === "yearly" ? currentPlan.yearlyPrice : currentPlan.monthlyPrice;
   const saveAmount = currentPlan.monthlyPrice * 12 - currentPlan.yearlyPrice;
+  
+  const exchangeRate = exchangeRates[currency] || 1;
+  const convertedPrice = Math.round(priceUSD * exchangeRate);
+  
+  const formatPrice = (amount: number, curr: string): string => {
+    if (curr === "NPR") {
+      return `Rs. ${amount.toLocaleString()}`;
+    }
+    return `$${amount}`;
+  };
+
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
   const getAccessToken = (): string | null => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem("accessToken");
-  };
-
-  const formatCardNumber = (value: string): string => {
-    const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
-    const matches = v.match(/\d{4,16}/g);
-    const match = (matches && matches[0]) || "";
-    const parts: string[] = [];
-    for (let i = 0, len = match.length; i < len; i += 4) {
-      parts.push(match.substring(i, i + 4));
-    }
-    if (parts.length) {
-      return parts.join(" ");
-    }
-    return value;
-  };
-
-  const formatExpiry = (value: string): string => {
-    const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
-    if (v.length >= 2) {
-      return v.slice(0, 2) + "/" + v.slice(2, 4);
-    }
-    return v;
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-    
-    if (!cardName.trim()) {
-      newErrors.cardName = "Cardholder name is required";
-    }
-    
-    if (cardNumber.replace(/\s/g, "").length < 16) {
-      newErrors.cardNumber = "Enter a valid card number";
-    }
-    
-    if (expiry.length < 5) {
-      newErrors.expiry = "Enter a valid expiry date";
-    }
-    
-    if (cvc.length < 3) {
-      newErrors.cvc = "Enter a valid CVC";
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
   const callUpgradeAPI = async (): Promise<any> => {
@@ -197,32 +255,29 @@ function CheckoutContent() {
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || "Failed to upgrade plan");
+      if (data.code === 'PENDING_REQUEST_EXISTS') {
+        setHasPendingRequest(true);
+        setPendingRequestDetails(data.existingSubscription);
+        throw new Error(data.message || 'You already have a pending upgrade request for this plan.');
+      }
+      throw new Error(data.message || 'Failed to upgrade plan');
     }
 
     return data;
   };
 
-  const handlePayment = async (e: React.FormEvent): Promise<void> => {
-    e.preventDefault();
-    
-    if (!validateForm()) return;
+  const handlePaymentConfirmation = async (): Promise<void> => {
+    if (hasPendingRequest) return;
     
     setProcessing(true);
     setUpgradeError("");
 
     try {
-      // Simulate payment processing
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // Call backend to upgrade plan
-      await callUpgradeAPI();
-
-      setPaymentSuccess(true);
-      
-      setTimeout(() => {
-        router.push(`/dashboard?upgraded=true&plan=${currentPlan.name.toLowerCase()}`);
-      }, 2000);
+      const result = await callUpgradeAPI();
+      setHasPendingRequest(true);
+      if (result.subscription) {
+        setPendingRequestDetails(result.subscription);
+      }
     } catch (err) {
       setUpgradeError(err instanceof Error ? err.message : "Payment failed. Please try again.");
     } finally {
@@ -230,26 +285,50 @@ function CheckoutContent() {
     }
   };
 
-  const handleBankTransfer = async (): Promise<void> => {
-    setProcessing(true);
-    setUpgradeError("");
+  const currencies = ["USD", "NPR"];
 
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      await callUpgradeAPI();
-      setPaymentSuccess(true);
-      
-      setTimeout(() => {
-        router.push(`/dashboard?upgraded=true&plan=${currentPlan.name.toLowerCase()}`);
-      }, 2000);
-    } catch (err) {
-      setUpgradeError(err instanceof Error ? err.message : "Failed to process. Please try again.");
-    } finally {
-      setProcessing(false);
+  const canApplyForPlan = (): { allowed: boolean; message: string } => {
+    if (!currentPlanInfo) return { allowed: true, message: '' };
+
+    const currentUserPlan = currentPlanInfo.plan;
+    const selectedPlan = currentPlan.planKey;
+    const subscription = currentPlanInfo.subscription;
+
+    if (currentUserPlan === 'FREE') {
+      return { allowed: true, message: '' };
     }
+
+    if (currentUserPlan === selectedPlan) {
+      return { allowed: false, message: `You are already on the ${currentUserPlan} plan.` };
+    }
+
+    if (selectedPlan === 'FREE') {
+      if (subscription && subscription.status === 'active') {
+        return { 
+          allowed: false, 
+          message: `Your ${currentUserPlan} plan is still active. Please wait until your current subscription expires before downgrading to FREE plan.` 
+        };
+      }
+      return { allowed: true, message: '' };
+    }
+
+    const planOrder = ['FREE', 'STARTER', 'PRO', 'ENTERPRISE'];
+    const currentIndex = planOrder.indexOf(currentUserPlan);
+    const selectedIndex = planOrder.indexOf(selectedPlan);
+
+    if (selectedIndex > currentIndex) {
+      return { allowed: true, message: '' };
+    }
+
+    return { 
+      allowed: false, 
+      message: `You cannot downgrade from ${currentUserPlan} to ${selectedPlan} while your subscription is active.` 
+    };
   };
 
-  if (loading) {
+  const eligibility = canApplyForPlan();
+
+  if (loading || planInfoLoading || ratesLoading) {
     return (
       <div className="checkout-loading">
         <Loader2 size={40} strokeWidth={1.5} className="checkout-loading-spinner" />
@@ -260,6 +339,36 @@ function CheckoutContent() {
 
   if (!mounted) {
     return null;
+  }
+
+  if (!eligibility.allowed && !hasPendingRequest) {
+    return (
+      <div className="checkout-root" suppressHydrationWarning>
+        <nav className="navbar" suppressHydrationWarning>
+          <div className="nav-inner" suppressHydrationWarning>
+            <Link href="/" className="nav-logo">
+              <QrCode size={19} strokeWidth={2} />
+              <span>EasyMenu</span>
+            </Link>
+          </div>
+        </nav>
+        <main className="checkout-main" suppressHydrationWarning>
+          <div className="container" suppressHydrationWarning>
+            <div className="checkout-error-container" suppressHydrationWarning>
+              <div className="checkout-error-icon">
+                <AlertCircle size={48} strokeWidth={2} />
+              </div>
+              <h1>Unable to Process</h1>
+              <p className="checkout-error-message">{eligibility.message}</p>
+              <Link href="/membership" className="btn-primary btn-large">
+                <ArrowLeft size={18} />
+                Back to Plans
+              </Link>
+            </div>
+          </div>
+        </main>
+      </div>
+    );
   }
 
   if (paymentSuccess) {
@@ -276,11 +385,15 @@ function CheckoutContent() {
         <main className="checkout-main" suppressHydrationWarning>
           <div className="container" suppressHydrationWarning>
             <div className="checkout-success" suppressHydrationWarning>
-              <div className="checkout-success-icon">
-                <Check size={48} strokeWidth={2} />
+              <div className="checkout-success-icon pending-icon">
+                <Loader2 size={48} strokeWidth={2} className="spinning" />
               </div>
-              <h1>Payment Successful!</h1>
-              <p>You have been upgraded to the <strong>{currentPlan.name}</strong> plan.</p>
+              <h1>Payment Submitted!</h1>
+              <p>Your upgrade request to the <strong>{currentPlan.name}</strong> plan has been submitted.</p>
+              <p className="checkout-pending-message">
+                Your payment is being verified. The membership will be activated once an admin approves it. 
+                This usually takes 1 to 2 business days.
+              </p>
               <p className="checkout-success-redirect">Redirecting to dashboard...</p>
               <Link href="/dashboard" className="btn-primary btn-large">
                 <LayoutDashboard size={18} />
@@ -345,6 +458,49 @@ function CheckoutContent() {
                 </div>
               )}
 
+              {hasPendingRequest && (
+                <div className="checkout-pending-banner">
+                  <Clock size={20} strokeWidth={2} />
+                  <div className="checkout-pending-banner-content">
+                    <h3>Application Already Submitted</h3>
+                    <p>
+                      You have already applied for the <strong>{currentPlan.name}</strong> plan. 
+                      Please wait for admin approval. This usually takes 1 to 2 business days.
+                    </p>
+                    {pendingRequestDetails && (
+                      <p className="checkout-pending-date">
+                        Submitted on: {formatDate(pendingRequestDetails.purchasedAt)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Currency Selector */}
+              <div className="checkout-section" suppressHydrationWarning>
+                <h2 className="checkout-section-title">Currency</h2>
+                <div className="currency-selector" suppressHydrationWarning>
+                  {currencies.map((curr) => (
+                    <button
+                      key={curr}
+                      className={`currency-option ${currency === curr ? "active" : ""}`}
+                      onClick={() => setCurrency(curr)}
+                      type="button"
+                    >
+                      <span className="currency-flag">
+                        {curr === "NPR" ? "🇳🇵" : "🇺🇸"}
+                      </span>
+                      <span className="currency-info">
+                        <span className="currency-code">{curr}</span>
+                        <span className="currency-name">
+                          {curr === "NPR" ? "Nepali Rupees" : "US Dollars"}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               {/* Billing Cycle */}
               <div className="checkout-section" suppressHydrationWarning>
                 <h2 className="checkout-section-title">Billing cycle</h2>
@@ -357,7 +513,7 @@ function CheckoutContent() {
                     <div className="billing-option-content">
                       <span className="billing-option-label">Monthly</span>
                       <span className="billing-option-price">
-                        ${currentPlan.monthlyPrice}/mo
+                        {formatPrice(Math.round(currentPlan.monthlyPrice * exchangeRate), currency)}/mo
                       </span>
                     </div>
                   </button>
@@ -369,10 +525,12 @@ function CheckoutContent() {
                     <div className="billing-option-content">
                       <div className="billing-option-header">
                         <span className="billing-option-label">Yearly</span>
-                        <span className="billing-save-badge">Save ${saveAmount}</span>
+                        <span className="billing-save-badge">
+                          Save {formatPrice(Math.round(saveAmount * exchangeRate), currency)}
+                        </span>
                       </div>
                       <span className="billing-option-price">
-                        ${currentPlan.yearlyPrice}/yr
+                        {formatPrice(Math.round(currentPlan.yearlyPrice * exchangeRate), currency)}/yr
                       </span>
                     </div>
                   </button>
@@ -384,12 +542,12 @@ function CheckoutContent() {
                 <h2 className="checkout-section-title">Payment method</h2>
                 <div className="payment-methods" suppressHydrationWarning>
                   <button
-                    className={`payment-method ${paymentMethod === "card" ? "active" : ""}`}
-                    onClick={() => setPaymentMethod("card")}
+                    className={`payment-method ${paymentMethod === "esewa" ? "active" : ""}`}
+                    onClick={() => setPaymentMethod("esewa")}
                     type="button"
                   >
-                    <CreditCard size={18} strokeWidth={1.5} />
-                    <span>Credit Card</span>
+                    <Wallet size={18} strokeWidth={1.5} />
+                    <span>eSewa</span>
                   </button>
                   <button
                     className={`payment-method ${paymentMethod === "bank" ? "active" : ""}`}
@@ -402,142 +560,164 @@ function CheckoutContent() {
                 </div>
               </div>
 
-              {/* Card Form */}
-              {paymentMethod === "card" && (
-                <form onSubmit={handlePayment} className="checkout-form" suppressHydrationWarning>
-                  <div className="form-group" suppressHydrationWarning>
-                    <label htmlFor="cardName">Cardholder name</label>
-                    <input
-                      id="cardName"
-                      type="text"
-                      placeholder="John Doe"
-                      value={cardName}
-                      onChange={(e) => setCardName(e.target.value)}
-                      className={`form-input ${errors.cardName ? "error" : ""}`}
-                    />
-                    {errors.cardName && <span className="form-error">{errors.cardName}</span>}
-                  </div>
-
-                  <div className="form-group" suppressHydrationWarning>
-                    <label htmlFor="cardNumber">Card number</label>
-                    <div className="card-number-wrap">
-                      <CreditCard size={18} strokeWidth={1.5} className="input-icon" />
-                      <input
-                        id="cardNumber"
-                        type="text"
-                        placeholder="4242 4242 4242 4242"
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
-                        maxLength={19}
-                        className={`form-input has-icon ${errors.cardNumber ? "error" : ""}`}
-                      />
-                      <div className="card-logos">
-                        <span className="card-logo visa">VISA</span>
-                        <span className="card-logo mc">MC</span>
+              {/* eSewa Payment */}
+              {paymentMethod === "esewa" && (
+                <div className="payment-qr-section" suppressHydrationWarning>
+                  <div className="payment-info-card">
+                    <div className="payment-header">
+                      <div className="payment-logo esewa-logo">
+                        <span>eSewa</span>
+                      </div>
+                      <div className="payment-header-text">
+                        <h3>Pay with eSewa</h3>
+                        <p>Fast & secure digital wallet payment</p>
                       </div>
                     </div>
-                    {errors.cardNumber && <span className="form-error">{errors.cardNumber}</span>}
-                  </div>
+                    
+                    <p className="payment-instruction">
+                      Scan the QR code below using your eSewa app or manually enter the details to complete payment.
+                    </p>
 
-                  <div className="form-row" suppressHydrationWarning>
-                    <div className="form-group" suppressHydrationWarning>
-                      <label htmlFor="expiry">Expiry date</label>
-                      <input
-                        id="expiry"
-                        type="text"
-                        placeholder="MM/YY"
-                        value={expiry}
-                        onChange={(e) => setExpiry(formatExpiry(e.target.value))}
-                        maxLength={5}
-                        className={`form-input ${errors.expiry ? "error" : ""}`}
-                      />
-                      {errors.expiry && <span className="form-error">{errors.expiry}</span>}
+                    <div className="qr-container">
+                      <div className="qr-code-wrapper">
+                        <Image
+                          src="/esewa.jpeg"
+                          alt="eSewa QR Code"
+                          width={200}
+                          height={200}
+                          className="payment-qr-image"
+                          priority
+                        />
+                      </div>
+                      <p className="qr-caption">Scan with eSewa app</p>
                     </div>
-                    <div className="form-group" suppressHydrationWarning>
-                      <label htmlFor="cvc">CVC</label>
-                      <input
-                        id="cvc"
-                        type="text"
-                        placeholder="123"
-                        value={cvc}
-                        onChange={(e) => setCvc(e.target.value.replace(/[^0-9]/g, "").slice(0, 4))}
-                        maxLength={4}
-                        className={`form-input ${errors.cvc ? "error" : ""}`}
-                      />
-                      {errors.cvc && <span className="form-error">{errors.cvc}</span>}
-                    </div>
-                  </div>
 
-                  <button
-                    type="submit"
-                    className="btn-primary btn-full btn-large"
-                    disabled={processing}
-                  >
-                    {processing ? (
-                      <>
-                        <Loader2 size={18} strokeWidth={2} className="spinning" />
-                        Processing...
-                      </>
+                    <div className="payment-details">
+                      <h4 className="payment-details-title">Payment Details</h4>
+                      <div className="payment-detail-row total-row">
+                        <span className="detail-label">Amount</span>
+                        <span className="detail-value amount-value">
+                          {formatPrice(convertedPrice, currency)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="payment-note">
+                      After completing the payment, click the button below. Your membership will be activated once an admin verifies and approves your payment.
+                    </p>
+
+                    {hasPendingRequest ? (
+                      <button 
+                        className="btn-pending btn-full" 
+                        disabled
+                        type="button"
+                      >
+                        <Clock size={18} strokeWidth={2} />
+                        Waiting for Admin Approval
+                      </button>
                     ) : (
-                      <>
-                        <Lock size={16} strokeWidth={2} />
-                        Pay ${price} - {billingCycle === "yearly" ? "Yearly" : "Monthly"}
-                      </>
+                      <button 
+                        className="btn-primary btn-full" 
+                        onClick={handlePaymentConfirmation}
+                        disabled={processing}
+                        type="button"
+                      >
+                        {processing ? (
+                          <>
+                            <Loader2 size={18} strokeWidth={2} className="spinning" />
+                            Submitting Payment...
+                          </>
+                        ) : (
+                          <>
+                            <Shield size={16} strokeWidth={2} />
+                            I've Made the Payment
+                          </>
+                        )}
+                      </button>
                     )}
-                  </button>
-
-                  <div className="secure-notice" suppressHydrationWarning>
-                    <Shield size={14} strokeWidth={1.5} />
-                    <span>Your payment info is encrypted and secure</span>
                   </div>
-                </form>
+                </div>
               )}
 
+              {/* Bank Transfer */}
               {paymentMethod === "bank" && (
-                <div className="bank-transfer-info" suppressHydrationWarning>
-                  <div className="bank-info-card">
-                    <h3>Bank Transfer Details</h3>
-                    <p>Please transfer the amount to the following account:</p>
-                    <div className="bank-details">
-                      <div className="bank-detail-row">
-                        <span className="bank-label">Bank:</span>
-                        <span className="bank-value">Nepal Investment Bank</span>
+                <div className="payment-qr-section" suppressHydrationWarning>
+                  <div className="payment-info-card">
+                    <div className="payment-header">
+                      <div className="payment-logo bank-logo">
+                        <Building2 size={20} strokeWidth={1.5} />
                       </div>
-                      <div className="bank-detail-row">
-                        <span className="bank-label">Account Name:</span>
-                        <span className="bank-value">EasyMenu Pvt. Ltd.</span>
-                      </div>
-                      <div className="bank-detail-row">
-                        <span className="bank-label">Account Number:</span>
-                        <span className="bank-value">00101010012345</span>
-                      </div>
-                      <div className="bank-detail-row">
-                        <span className="bank-label">Amount:</span>
-                        <span className="bank-value">${price} USD</span>
+                      <div className="payment-header-text">
+                        <h3>Bank Transfer</h3>
+                        <p>Direct bank deposit</p>
                       </div>
                     </div>
-                    <p className="bank-note">
-                      Your plan will be activated once the payment is confirmed. This usually takes 1-2 business days.
+
+                    <p className="payment-instruction">
+                      Scan the QR code below with your banking app to make the transfer.
                     </p>
-                    <button 
-                      className="btn-primary btn-full btn-large" 
-                      onClick={handleBankTransfer}
-                      disabled={processing}
-                      type="button"
-                      style={{ marginTop: '16px' }}
-                    >
-                      {processing ? (
-                        <>
-                          <Loader2 size={18} strokeWidth={2} className="spinning" />
-                          Processing...
-                        </>
-                      ) : (
-                        <>
-                          <Building2 size={16} strokeWidth={2} />
-                          I&apos;ve Made the Transfer
-                        </>
-                      )}
-                    </button>
+
+                    <div className="qr-container">
+                      <div className="qr-code-wrapper">
+                        <Image
+                          src="/bank.jpeg"
+                          alt="Bank QR Code"
+                          width={200}
+                          height={200}
+                          className="payment-qr-image"
+                          priority
+                        />
+                      </div>
+                      <p className="qr-caption">Scan with banking app</p>
+                    </div>
+
+                    <div className="payment-details">
+                      <h4 className="payment-details-title">Payment Details</h4>
+                      <div className="payment-detail-row">
+                        <span className="detail-label">Bank</span>
+                        <span className="detail-value">Nabil Bank Limited</span>
+                      </div>
+                      <div className="payment-detail-row total-row">
+                        <span className="detail-label">Amount</span>
+                        <span className="detail-value amount-value">
+                          {formatPrice(convertedPrice, currency)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="payment-note">
+                      After completing the transfer, click the button below. Your membership will be activated once an admin verifies and approves your payment.
+                    </p>
+
+                    {hasPendingRequest ? (
+                      <button 
+                        className="btn-pending btn-full" 
+                        disabled
+                        type="button"
+                      >
+                        <Clock size={18} strokeWidth={2} />
+                        Waiting for Admin Approval
+                      </button>
+                    ) : (
+                      <button 
+                        className="btn-primary btn-full" 
+                        onClick={handlePaymentConfirmation}
+                        disabled={processing}
+                        type="button"
+                      >
+                        {processing ? (
+                          <>
+                            <Loader2 size={18} strokeWidth={2} className="spinning" />
+                            Submitting Payment...
+                          </>
+                        ) : (
+                          <>
+                            <Building2 size={16} strokeWidth={2} />
+                            I've Made the Transfer
+                          </>
+                        )}
+                      </button>
+                    )}
                   </div>
                 </div>
               )}
@@ -561,27 +741,27 @@ function CheckoutContent() {
                 <div className="summary-details">
                   <div className="summary-row">
                     <span>Subtotal</span>
-                    <span>${price}.00</span>
+                    <span>{formatPrice(convertedPrice, currency)}</span>
                   </div>
                   <div className="summary-row">
                     <span>Tax</span>
-                    <span>$0.00</span>
+                    <span>{formatPrice(0, currency)}</span>
                   </div>
                   <div className="summary-divider" />
                   <div className="summary-row total">
                     <span>Total due today</span>
-                    <span>${price}.00</span>
+                    <span>{formatPrice(convertedPrice, currency)}</span>
                   </div>
                   {billingCycle === "yearly" && (
                     <div className="summary-savings">
                       <Sparkles size={12} />
-                      <span>You save ${saveAmount} with yearly billing</span>
+                      <span>You save {formatPrice(Math.round(saveAmount * exchangeRate), currency)} with yearly billing</span>
                     </div>
                   )}
                 </div>
 
                 <div className="summary-features">
-                  <h4>What&apos;s included:</h4>
+                  <h4>What&apos;s included</h4>
                   <ul>
                     {currentPlan.features.slice(0, 5).map((feature: string, index: number) => (
                       <li key={index}>
@@ -595,11 +775,6 @@ function CheckoutContent() {
                       </li>
                     )}
                   </ul>
-                </div>
-
-                <div className="summary-guarantee">
-                  <Shield size={14} strokeWidth={1.5} />
-                  <span>30-day money-back guarantee</span>
                 </div>
               </div>
             </div>
