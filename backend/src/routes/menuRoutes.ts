@@ -1,4 +1,5 @@
-//backend/src/routes/menuRoutes.ts
+// backend/src/routes/menuRoutes.ts
+
 import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { checkItemLimit, checkCategoryLimit } from '../middleware/membership';
@@ -27,6 +28,7 @@ import {
 import { getAnalytics, exportAnalyticsCSV } from '../controllers/analyticsController';
 import { getLocations, createLocation, updateLocation, deleteLocation } from '../controllers/locationController';
 import { getSchedules, createSchedule, deleteSchedule } from '../controllers/scheduleController';
+import { getSubscriptionStatus } from '../controllers/adminController';
 
 const router = Router();
 
@@ -35,6 +37,9 @@ router.use(authenticateToken);
 // Plan routes
 router.get('/plan/info', getPlanInfo);
 router.post('/plan/upgrade', upgradePlan);
+
+// Subscription status
+router.get('/subscription/status', getSubscriptionStatus);
 
 // Settings route
 router.put('/settings', updateSettings);
