@@ -5,6 +5,25 @@ import { Shield, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import "./login.css";
 
+interface LoginResponse {
+  message: string;
+  accessToken: string;
+  expiresIn: number;
+  user: {
+    id: string;
+    name: string;
+    email: string;
+    admin: boolean;
+    verified: boolean;
+    restaurantId: string | null;
+    restaurant: {
+      id: string;
+      name: string;
+      plan: string;
+    } | null;
+  };
+}
+
 export default function AdminLoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState<string>("");
@@ -35,34 +54,32 @@ export default function AdminLoginPage() {
         }),
       });
 
-      const data = await response.json();
+      const data: LoginResponse = await response.json();
 
       if (!response.ok) {
         throw new Error(data.message || 'Login failed');
       }
 
-      // Check if user is admin
       if (!data.user?.admin) {
-        throw new Error('Access denied. Admin privileges required.');
+        throw new Error('Access denied. Staff privileges required.');
       }
 
-      // Store admin data
       localStorage.setItem('adminToken', data.accessToken);
       localStorage.setItem('adminUser', JSON.stringify(data.user));
       
       if (data.user.restaurantId) {
         localStorage.setItem('adminRestaurantId', data.user.restaurantId);
         localStorage.setItem('adminRestaurantName', data.user.restaurant?.name || '');
+        localStorage.setItem('adminRestaurantPlan', data.user.restaurant?.plan || 'FREE');
       }
 
-      // Navigate to dashboard
       router.push('/dashboard');
       
     } catch (err: unknown) {
       console.error('Login error:', err);
       
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        setError('Unable to connect to server. Please make sure the backend is running on port 5000.');
+        setError('Unable to connect to server. Please try again later.');
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
@@ -73,29 +90,24 @@ export default function AdminLoginPage() {
     }
   };
 
-  const testConnection = async () => {
-    try {
-      const response = await fetch('http://localhost:5000/api/health');
-      const data = await response.json();
-      alert(`Backend is running! Status: ${data.status}\nTimestamp: ${data.timestamp}`);
-    } catch (err) {
-      alert(' Cannot connect to backend! Make sure it\'s running on port 5000.');
-    }
-  };
-
   return (
     <div className="admin-login-wrapper">
       <div className="admin-login-container">
         <div className="admin-login-card">
+          {/* Header */}
           <div className="login-header">
             <div className="admin-logo">
-              <Shield size={28} />
+              <Shield size={26} />
             </div>
             <h1 className="admin-title">EasyMenu</h1>
-            <p className="admin-subtitle">Admin Panel</p>
+            <p className="admin-subtitle">Staff Control Panel</p>
             <span className="admin-badge">Restricted Access</span>
+            <p className="admin-description">
+              Authorized EasyMenu staff only. All login attempts are monitored and logged.
+            </p>
           </div>
 
+          {/* Error */}
           {error && (
             <div className="error-alert">
               <AlertCircle size={16} />
@@ -103,34 +115,41 @@ export default function AdminLoginPage() {
             </div>
           )}
 
+          {/* Form */}
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-group">
               <label htmlFor="email">Email Address</label>
               <div className="input-wrapper">
-                <Mail className="input-icon" size={18} />
+                <Mail className="input-icon" size={16} />
                 <input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="admin@easymenu.com"
+                  placeholder="Enter your email"
                   required
                   disabled={loading}
                   autoComplete="email"
+                  autoFocus
                 />
               </div>
             </div>
 
             <div className="form-group">
-              <label htmlFor="password">Password</label>
+              <div className="label-row">
+                <label htmlFor="password">Password</label>
+                <button type="button" className="forgot-link" tabIndex={-1}>
+                  Forgot password?
+                </button>
+              </div>
               <div className="input-wrapper">
-                <Lock className="input-icon" size={18} />
+                <Lock className="input-icon" size={16} />
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password"
+                  placeholder="Enter your password"
                   required
                   disabled={loading}
                   autoComplete="current-password"
@@ -140,8 +159,9 @@ export default function AdminLoginPage() {
                   className="toggle-password"
                   onClick={() => setShowPassword(!showPassword)}
                   tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
@@ -154,35 +174,18 @@ export default function AdminLoginPage() {
               {loading ? (
                 <>
                   <span className="spinner" />
-                  Signing in...
+                  Authenticating...
                 </>
               ) : (
-                'Sign In to Admin Panel'
+                'Sign in to Control Panel'
               )}
             </button>
           </form>
-
-          <div style={{ marginTop: '20px', textAlign: 'center' }}>
-            <button
-              type="button"
-              onClick={testConnection}
-              style={{
-                padding: '8px 16px',
-                fontSize: '12px',
-                background: '#f0f0f0',
-                border: '1px solid #ddd',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                color: '#333'
-              }}
-            >
-              🔍 Test Backend Connection
-            </button>
-          </div>
         </div>
 
+        {/* Footer */}
         <p className="login-footer">
-          &copy; {currentYear} EasyMenu. All rights reserved.
+          &copy; {currentYear} EasyMenu. All rights reserved. Unauthorized access is prohibited.
         </p>
       </div>
     </div>
