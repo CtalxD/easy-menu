@@ -1,29 +1,38 @@
-// admin/app/login/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, FormEvent } from "react";
 import { Shield, Mail, Lock, Eye, EyeOff, AlertCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import "./login.css";
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
-  const currentYear = new Date().getFullYear().toString();
+  const router = useRouter();
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [error, setError] = useState<string>("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const currentYear: string = new Date().getFullYear().toString();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
     try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/auth/login`, {
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      
+      const response = await fetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+        },
         credentials: 'include',
-        body: JSON.stringify({ email, password, rememberMe: false }),
+        body: JSON.stringify({ 
+          email: email.trim(), 
+          password: password,
+          rememberMe: true 
+        }),
       });
 
       const data = await response.json();
@@ -32,17 +41,45 @@ export default function AdminLoginPage() {
         throw new Error(data.message || 'Login failed');
       }
 
+      // Check if user is admin
       if (!data.user?.admin) {
         throw new Error('Access denied. Admin privileges required.');
       }
 
+      // Store admin data
       localStorage.setItem('adminToken', data.accessToken);
-      window.location.href = '/dashboard';
+      localStorage.setItem('adminUser', JSON.stringify(data.user));
       
-    } catch (err: any) {
-      setError(err.message || 'Invalid credentials');
+      if (data.user.restaurantId) {
+        localStorage.setItem('adminRestaurantId', data.user.restaurantId);
+        localStorage.setItem('adminRestaurantName', data.user.restaurant?.name || '');
+      }
+
+      // Navigate to dashboard
+      router.push('/dashboard');
+      
+    } catch (err: unknown) {
+      console.error('Login error:', err);
+      
+      if (err instanceof TypeError && err.message === 'Failed to fetch') {
+        setError('Unable to connect to server. Please make sure the backend is running on port 5000.');
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('An unexpected error occurred');
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const testConnection = async () => {
+    try {
+      const response = await fetch('http://localhost:5000/api/health');
+      const data = await response.json();
+      alert(`Backend is running! Status: ${data.status}\nTimestamp: ${data.timestamp}`);
+    } catch (err) {
+      alert(' Cannot connect to backend! Make sure it\'s running on port 5000.');
     }
   };
 
@@ -124,6 +161,24 @@ export default function AdminLoginPage() {
               )}
             </button>
           </form>
+
+          <div style={{ marginTop: '20px', textAlign: 'center' }}>
+            <button
+              type="button"
+              onClick={testConnection}
+              style={{
+                padding: '8px 16px',
+                fontSize: '12px',
+                background: '#f0f0f0',
+                border: '1px solid #ddd',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                color: '#333'
+              }}
+            >
+              🔍 Test Backend Connection
+            </button>
+          </div>
         </div>
 
         <p className="login-footer">
