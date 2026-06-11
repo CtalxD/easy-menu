@@ -1,10 +1,17 @@
-// admin/app/dashboard/page.tsx
+// app/admin/dashboard/page.tsx
 "use client";
 
-import { useEffect, useState, Fragment } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Shield, LogOut, Clock, CheckCircle, XCircle, RefreshCw, Users, CreditCard, Store, Mail, Calendar, Search, Phone, MapPin, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  Shield, LogOut, CheckCircle, XCircle, RefreshCw,
+  Users, CreditCard, Store, Mail, Calendar, Search, Phone,
+  MapPin, Edit2, Trash2, AlertTriangle, ChevronDown, ChevronRight,
+  Clock
+} from "lucide-react";
 import "./dashboard.css";
+
+type TabType = "subscriptions" | "users";
 
 interface Subscription {
   id: string;
@@ -30,6 +37,7 @@ interface Restaurant {
   plan: string;
   phone: string | null;
   address: string | null;
+  description: string | null;
   createdAt: string;
 }
 
@@ -41,510 +49,687 @@ interface User {
   verified: boolean;
   createdAt: string;
   updatedAt: string;
-  _count: {
-    restaurants: number;
-  };
+  _count: { restaurants: number };
   restaurants: Restaurant[];
 }
 
 export default function AdminDashboard() {
   const router = useRouter();
+  
   const [adminUser, setAdminUser] = useState<any>(null);
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"subscriptions" | "users">("subscriptions");
+  const [activeTab, setActiveTab] = useState<TabType>("subscriptions");
   const [searchQuery, setSearchQuery] = useState("");
-  const [expandedUser, setExpandedUser] = useState<string | null>(null);
+  const [editingItem, setEditingItem] = useState<any>(null);
+  const [deletingItem, setDeletingItem] = useState<any>(null);
+  const [saving, setSaving] = useState(false);
+  const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set());
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
   useEffect(() => {
     const token = localStorage.getItem("adminToken");
     const user = localStorage.getItem("adminUser");
-
+    
     if (!token || !user) {
       router.push("/login");
       return;
     }
 
-    const parsedUser = JSON.parse(user);
-    if (!parsedUser.admin) {
+    const parsed = JSON.parse(user);
+    if (!parsed.admin) {
       router.push("/login");
       return;
     }
 
-    setAdminUser(parsedUser);
-    fetchPendingSubscriptions(token);
-    fetchAllUsers(token);
+    setAdminUser(parsed);
+    loadData(token);
   }, []);
 
   useEffect(() => {
-    if (searchQuery.trim() === "") {
+    if (!searchQuery.trim()) {
       setFilteredUsers(users);
-    } else {
-      const query = searchQuery.toLowerCase();
-      const filtered = users.filter(
-        (user) =>
-          user.name.toLowerCase().includes(query) ||
-          user.email.toLowerCase().includes(query) ||
-          (user.restaurants && user.restaurants.some(
-            (r) =>
-              r.name.toLowerCase().includes(query) ||
-              (r.phone && r.phone.includes(query)) ||
-              (r.address && r.address.toLowerCase().includes(query))
-          ))
-      );
-      setFilteredUsers(filtered);
+      return;
     }
+    
+    const q = searchQuery.toLowerCase();
+    setFilteredUsers(
+      users.filter(u =>
+        u.name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q) ||
+        u.restaurants?.some(r =>
+          r.name.toLowerCase().includes(q) ||
+          r.phone?.includes(q) ||
+          r.address?.toLowerCase().includes(q)
+        )
+      )
+    );
   }, [searchQuery, users]);
 
-  const fetchPendingSubscriptions = async (token: string) => {
+  const getToken = () => localStorage.getItem("adminToken") || "";
+
+  const loadData = async (token: string) => {
+    setLoading(true);
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(
-        `${API_URL}/api/admin/subscriptions/pending`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch subscriptions");
-      }
-
-      const data = await response.json();
-      setSubscriptions(data);
+      await Promise.all([
+        fetchSubscriptions(token),
+        fetchUsers(token)
+      ]);
     } catch (err: any) {
-      setError(err.message || "Failed to load subscriptions");
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchAllUsers = async (token: string) => {
+  const fetchSubscriptions = async (token: string) => {
+    const res = await fetch(`${API_URL}/api/admin/subscriptions/pending`, {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include"
+    });
+    if (!res.ok) throw new Error("Failed to fetch subscriptions");
+    setSubscriptions(await res.json());
+  };
+
+  const fetchUsers = async (token: string) => {
+    const res = await fetch(`${API_URL}/api/admin/users`, {
+      headers: { Authorization: `Bearer ${token}` },
+      credentials: "include"
+    });
+    if (!res.ok) throw new Error("Failed to fetch users");
+    const data = await res.json();
+    setUsers(data);
+    setFilteredUsers(data);
+  };
+
+  const handleApprove = async (id: string) => {
+    setProcessingId(id);
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(
-        `${API_URL}/api/admin/users`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch users");
-      }
-
-      const data = await response.json();
-      setUsers(data);
-      setFilteredUsers(data);
+      const res = await fetch(`${API_URL}/api/admin/subscriptions/${id}/approve`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        credentials: "include"
+      });
+      if (!res.ok) throw new Error("Failed to approve");
+      setSubscriptions(prev => prev.filter(s => s.id !== id));
+      showSuccess("Subscription approved");
     } catch (err: any) {
-      console.error("Failed to load users:", err);
+      showError(err.message);
+    } finally {
+      setProcessingId(null);
     }
   };
 
-  const handleSearchUsers = async (query: string) => {
-    setSearchQuery(query);
+  const handleReject = async (id: string) => {
+    setProcessingId(id);
+    try {
+      const res = await fetch(`${API_URL}/api/admin/subscriptions/${id}/reject`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getToken()}` },
+        credentials: "include"
+      });
+      if (!res.ok) throw new Error("Failed to reject");
+      setSubscriptions(prev => prev.filter(s => s.id !== id));
+      showSuccess("Subscription rejected");
+    } catch (err: any) {
+      showError(err.message);
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!editingItem) return;
+    setSaving(true);
     
-    const token = localStorage.getItem("adminToken");
-    if (!token) return;
-
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(
-        `${API_URL}/api/admin/users?search=${encodeURIComponent(query)}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: "include",
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setFilteredUsers(data);
+      let res;
+      if (editingItem.type === "user") {
+        res = await fetch(`${API_URL}/api/admin/users/${editingItem.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${getToken()}`
+          },
+          body: JSON.stringify({
+            name: editingItem.name,
+            email: editingItem.email,
+            admin: editingItem.admin,
+            verified: editingItem.verified
+          })
+        });
+      } else {
+        res = await fetch(`${API_URL}/api/admin/restaurants/${editingItem.id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${getToken()}`
+          },
+          body: JSON.stringify({
+            name: editingItem.name,
+            phone: editingItem.phone,
+            plan: editingItem.plan,
+            address: editingItem.address
+          })
+        });
       }
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to update");
+      }
+      
+      showSuccess(`${editingItem.type === "user" ? "User" : "Restaurant"} updated`);
+      setEditingItem(null);
+      fetchUsers(getToken());
     } catch (err: any) {
-      console.error("Failed to search users:", err);
+      showError(err.message);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const toggleUserExpand = (userId: string) => {
-    setExpandedUser(expandedUser === userId ? null : userId);
-  };
-
-  const handleApprove = async (subscriptionId: string) => {
-    const token = localStorage.getItem("adminToken");
-    if (!token) return;
-
-    setProcessingId(subscriptionId);
+  const handleDelete = async () => {
+    if (!deletingItem) return;
+    setSaving(true);
+    
     try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(
-        `${API_URL}/api/admin/subscriptions/${subscriptionId}/approve`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to approve subscription");
+      const endpoint = deletingItem.type === "user" 
+        ? `${API_URL}/api/admin/users/${deletingItem.id}`
+        : `${API_URL}/api/admin/restaurants/${deletingItem.id}`;
+        
+      const res = await fetch(endpoint, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${getToken()}` }
+      });
+      
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to delete");
       }
-
-      setSubscriptions(subscriptions.filter((s) => s.id !== subscriptionId));
+      
+      showSuccess(`${deletingItem.type === "user" ? "User" : "Restaurant"} deleted`);
+      setDeletingItem(null);
+      fetchUsers(getToken());
     } catch (err: any) {
-      setError(err.message || "Approval failed");
+      showError(err.message);
     } finally {
-      setProcessingId(null);
-    }
-  };
-
-  const handleReject = async (subscriptionId: string) => {
-    const token = localStorage.getItem("adminToken");
-    if (!token) return;
-
-    setProcessingId(subscriptionId);
-    try {
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
-      const response = await fetch(
-        `${API_URL}/api/admin/subscriptions/${subscriptionId}/reject`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to reject subscription");
-      }
-
-      setSubscriptions(subscriptions.filter((s) => s.id !== subscriptionId));
-    } catch (err: any) {
-      setError(err.message || "Rejection failed");
-    } finally {
-      setProcessingId(null);
+      setSaving(false);
     }
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("adminUser");
-    localStorage.removeItem("adminRestaurantId");
-    localStorage.removeItem("adminRestaurantName");
+    ["adminToken", "adminUser", "adminRestaurantId", "adminRestaurantName"].forEach(
+      key => localStorage.removeItem(key)
+    );
     router.push("/login");
   };
 
-  const formatDate = (date: string) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+  const toggleUserExpand = (userId: string) => {
+    setExpandedUsers(prev => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
     });
   };
 
+  const showSuccess = (msg: string) => {
+    setSuccess(msg);
+    setTimeout(() => setSuccess(""), 3000);
+  };
+
+  const showError = (msg: string) => {
+    setError(msg);
+    setTimeout(() => setError(""), 5000);
+  };
+
+  const formatDate = (date: string) => {
+    return new Date(date).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric"
+    });
+  };
+
+  const getInitials = (name: string) => name.charAt(0).toUpperCase();
+
   if (loading) {
     return (
-      <div className="admin-loading">
-        <RefreshCw className="spin-icon" size={32} />
-        <p>Loading dashboard...</p>
+      <div className="loading-screen">
+        <RefreshCw className="spin" size={24} />
+        <p>Loading...</p>
       </div>
     );
   }
 
   return (
-    <div className="admin-dashboard">
-      {/* Sidebar */}
-      <aside className="admin-sidebar">
-        <div className="sidebar-header">
-          <div className="sidebar-logo">
-            <Shield size={24} />
+    <div className="dashboard">
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <div className="brand-icon">
+            <Shield size={20} />
           </div>
-          <h2>EasyMenu Admin</h2>
+          <span className="brand-name">EasyMenu</span>
         </div>
 
         <nav className="sidebar-nav">
-          <a 
-            href="#" 
+          <button
             className={`nav-item ${activeTab === "subscriptions" ? "active" : ""}`}
-            onClick={(e) => { e.preventDefault(); setActiveTab("subscriptions"); }}
+            onClick={() => setActiveTab("subscriptions")}
           >
-            <CreditCard size={20} />
-            <span>Subscriptions</span>
-          </a>
-          <a 
-            href="#" 
+            <CreditCard size={18} />
+            Subscriptions
+            {subscriptions.length > 0 && (
+              <span className="nav-count">{subscriptions.length}</span>
+            )}
+          </button>
+          <button
             className={`nav-item ${activeTab === "users" ? "active" : ""}`}
-            onClick={(e) => { e.preventDefault(); setActiveTab("users"); }}
+            onClick={() => setActiveTab("users")}
           >
-            <Users size={20} />
-            <span>Users</span>
-          </a>
+            <Users size={18} />
+            Users
+          </button>
         </nav>
 
         <div className="sidebar-footer">
-          <div className="admin-info">
-            <span className="admin-name">{adminUser?.name}</span>
-            <span className="admin-email">{adminUser?.email}</span>
+          <div className="sidebar-user">
+            <p className="sidebar-user-name">{adminUser?.name}</p>
+            <p className="sidebar-user-email">{adminUser?.email}</p>
           </div>
-          <button onClick={handleLogout} className="logout-btn">
-            <LogOut size={18} />
-            <span>Logout</span>
+          <button onClick={handleLogout} className="btn-logout">
+            <LogOut size={16} />
+            Logout
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="admin-main">
-        {activeTab === "subscriptions" ? (
+      <main className="main">
+        {success && (
+          <div className="alert alert-success">
+            <CheckCircle size={16} />
+            {success}
+          </div>
+        )}
+        {error && (
+          <div className="alert alert-error">
+            <span>{error}</span>
+            <button onClick={() => setError("")}>&times;</button>
+          </div>
+        )}
+
+        {activeTab === "subscriptions" && (
           <>
-            <header className="admin-header">
+            <div className="page-header">
               <h1>Pending Subscriptions</h1>
-              <button 
-                onClick={() => fetchPendingSubscriptions(localStorage.getItem("adminToken")!)}
-                className="refresh-btn"
-              >
-                <RefreshCw size={18} />
-                <span>Refresh</span>
+              <button onClick={() => fetchSubscriptions(getToken())} className="btn-secondary">
+                <RefreshCw size={14} />
+                Refresh
               </button>
-            </header>
+            </div>
 
-            {error && (
-              <div className="admin-error">
-                <span>{error}</span>
-                <button onClick={() => setError("")}>&times;</button>
+            {subscriptions.length === 0 ? (
+              <div className="empty-state">
+                <CheckCircle size={40} />
+                <h3>No pending requests</h3>
+                <p>All subscription requests have been processed</p>
               </div>
-            )}
-
-            <div className="subscriptions-grid">
-              {subscriptions.length === 0 ? (
-                <div className="empty-state">
-                  <CheckCircle size={48} />
-                  <h3>All caught up!</h3>
-                  <p>No pending subscription requests</p>
-                </div>
-              ) : (
-                subscriptions.map((sub) => (
-                  <div key={sub.id} className="subscription-card">
-                    <div className="card-header">
-                      <div className={`plan-badge plan-${sub.plan.toLowerCase()}`}>
+            ) : (
+              <div className="subs-grid">
+                {subscriptions.map(sub => (
+                  <div key={sub.id} className="sub-card">
+                    <div className="sub-card-top">
+                      <span className={`plan-tag plan-${sub.plan.toLowerCase()}`}>
                         {sub.plan}
-                      </div>
-                      <span className="price">
-                        ${sub.price}/{sub.billingCycle.toLowerCase()}
                       </span>
+                      <span className="sub-price">${sub.price}/{sub.billingCycle.toLowerCase()}</span>
                     </div>
-
-                    <div className="card-body">
-                      <div className="info-row">
-                        <span className="label">Owner</span>
-                        <span className="value">{sub.restaurant?.owner?.name || "N/A"}</span>
+                    <div className="sub-card-body">
+                      <div className="sub-row">
+                        <span className="sub-label">Owner</span>
+                        <span className="sub-value">{sub.restaurant.owner.name}</span>
                       </div>
-                      <div className="info-row">
-                        <span className="label">Email</span>
-                        <span className="value">{sub.restaurant?.owner?.email || "N/A"}</span>
+                      <div className="sub-row">
+                        <span className="sub-label">Email</span>
+                        <span className="sub-value">{sub.restaurant.owner.email}</span>
                       </div>
-                      <div className="info-row">
-                        <span className="label">Purchased</span>
-                        <span className="value">
-                          {new Date(sub.purchasedAt).toLocaleDateString()}
-                        </span>
+                      <div className="sub-row">
+                        <span className="sub-label">Purchased</span>
+                        <span className="sub-value">{formatDate(sub.purchasedAt)}</span>
                       </div>
                     </div>
-
-                    <div className="card-actions">
+                    <div className="sub-card-actions">
                       <button
                         onClick={() => handleApprove(sub.id)}
                         disabled={processingId === sub.id}
-                        className="approve-btn"
+                        className="btn-approve"
                       >
-                        <CheckCircle size={18} />
-                        <span>Approve</span>
+                        <CheckCircle size={16} />
+                        Approve
                       </button>
                       <button
                         onClick={() => handleReject(sub.id)}
                         disabled={processingId === sub.id}
-                        className="reject-btn"
+                        className="btn-reject"
                       >
-                        <XCircle size={18} />
-                        <span>Reject</span>
+                        <XCircle size={16} />
+                        Reject
                       </button>
                     </div>
                   </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </>
-        ) : (
+        )}
+
+        {activeTab === "users" && (
           <>
-            <header className="admin-header">
-              <h1>All Users ({filteredUsers.length})</h1>
-              <div className="header-actions">
+            <div className="page-header">
+              <h1>Users</h1>
+              <div className="header-right">
                 <div className="search-box">
-                  <Search size={18} />
+                  <Search size={16} />
                   <input
                     type="text"
-                    placeholder="Search by name, email, restaurant or phone..."
+                    placeholder="Search users, restaurants or phone..."
                     value={searchQuery}
-                    onChange={(e) => handleSearchUsers(e.target.value)}
+                    onChange={e => setSearchQuery(e.target.value)}
                   />
                 </div>
-                <button 
-                  onClick={() => fetchAllUsers(localStorage.getItem("adminToken")!)}
-                  className="refresh-btn"
-                >
-                  <RefreshCw size={18} />
-                  <span>Refresh</span>
+                <button onClick={() => fetchUsers(getToken())} className="btn-secondary">
+                  <RefreshCw size={14} />
+                  Refresh
                 </button>
               </div>
-            </header>
-
-            <div className="users-table-container">
-              {filteredUsers.length === 0 ? (
-                <div className="empty-state">
-                  <Search size={48} />
-                  <h3>No users found</h3>
-                  <p>{searchQuery ? "Try a different search term" : "Users will appear here once they register"}</p>
-                </div>
-              ) : (
-                <table className="users-table">
-                  <thead>
-                    <tr>
-                      <th>User</th>
-                      <th>Email</th>
-                      <th>Role</th>
-                      <th>Verified</th>
-                      <th>Restaurants</th>
-                      <th>Joined</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredUsers.map((user) => (
-                      <Fragment key={user.id}>
-                        <tr className={expandedUser === user.id ? "expanded-row" : ""}>
-                          <td>
-                            <div className="user-name-cell">
-                              <div className="user-avatar" style={{ 
-                                background: user.admin ? '#F59E0B' : 'var(--accent)'
-                              }}>
-                                {user.name.charAt(0).toUpperCase()}
-                              </div>
-                              <div>
-                                <div className="user-display-name">{user.name}</div>
-                                <div className="user-id-label">
-                                  ID: {user.id.substring(0, 8)}...
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="email-cell">
-                              <Mail size={14} />
-                              {user.email}
-                            </div>
-                          </td>
-                          <td>
-                            <span className={`role-badge ${user.admin ? "admin" : "user"}`}>
-                              {user.admin ? "Admin" : "User"}
-                            </span>
-                          </td>
-                          <td>
-                            <div className="verified-cell">
-                              {user.verified ? (
-                                <>
-                                  <CheckCircle size={16} className="verified-icon" />
-                                  <span className="verified-text">Verified</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Clock size={16} className="pending-icon" />
-                                  <span className="pending-text">Pending</span>
-                                </>
-                              )}
-                            </div>
-                          </td>
-                          <td>
-                            <div className="restaurant-count-cell">
-                              <Store size={14} />
-                              <span>{user._count?.restaurants || (user.restaurants ? user.restaurants.length : 0)}</span>
-                            </div>
-                          </td>
-                          <td>
-                            <div className="date-cell">
-                              <Calendar size={14} />
-                              {formatDate(user.createdAt)}
-                            </div>
-                          </td>
-                          <td>
-                            {user.restaurants && user.restaurants.length > 0 && (
-                              <button
-                                onClick={() => toggleUserExpand(user.id)}
-                                className="expand-btn"
-                              >
-                                {expandedUser === user.id ? (
-                                  <ChevronUp size={18} />
-                                ) : (
-                                  <ChevronDown size={18} />
-                                )}
-                              </button>
-                            )}
-                          </td>
-                        </tr>
-                        {expandedUser === user.id && user.restaurants && user.restaurants.length > 0 && (
-                          <tr key={`${user.id}-restaurants`} className="restaurant-details-row">
-                            <td colSpan={7}>
-                              <div className="restaurant-details">
-                                <h4>Restaurants ({user.restaurants.length})</h4>
-                                <div className="restaurant-list">
-                                  {user.restaurants.map((restaurant) => (
-                                    <div key={restaurant.id} className="restaurant-mini-card">
-                                      <div className="restaurant-mini-header">
-                                        <Store size={16} />
-                                        <span className="restaurant-mini-name">{restaurant.name}</span>
-                                        <span className={`plan-badge plan-${restaurant.plan.toLowerCase()}`}>
-                                          {restaurant.plan}
-                                        </span>
-                                      </div>
-                                      <div className="restaurant-mini-body">
-                                        {restaurant.phone && (
-                                          <div className="restaurant-mini-item">
-                                            <Phone size={14} />
-                                            <span>{restaurant.phone}</span>
-                                          </div>
-                                        )}
-                                        {restaurant.address && (
-                                          <div className="restaurant-mini-item">
-                                            <MapPin size={14} />
-                                            <span>{restaurant.address}</span>
-                                          </div>
-                                        )}
-                                        <div className="restaurant-mini-item">
-                                          <Calendar size={14} />
-                                          <span>Created: {formatDate(restaurant.createdAt)}</span>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    ))}
-                  </tbody>
-                </table>
-              )}
             </div>
+
+            {filteredUsers.length === 0 ? (
+              <div className="empty-state">
+                <Search size={40} />
+                <h3>No users found</h3>
+                <p>{searchQuery ? "Try a different search term" : "No users registered yet"}</p>
+              </div>
+            ) : (
+              <div className="users-list">
+                {filteredUsers.map(user => (
+                  <div key={user.id} className="user-card">
+                    <div className="user-card-header">
+                      <div className="user-info">
+                        <div className="user-avatar" style={{ background: "#C45E3A" }}>
+                          {getInitials(user.name)}
+                        </div>
+                        <div>
+                          <h3 className="user-name">{user.name}</h3>
+                          <p className="user-email">{user.email}</p>
+                        </div>
+                      </div>
+
+                      <div className="user-tags">
+                        <span className={`tag ${user.admin ? "tag-admin" : "tag-user"}`}>
+                          {user.admin ? "Admin" : "User"}
+                        </span>
+                        <span className={`tag ${user.verified ? "tag-verified" : "tag-pending"}`}>
+                          {user.verified ? (
+                            <><CheckCircle size={12} /> Verified</>
+                          ) : (
+                            <><Clock size={12} /> Pending</>
+                          )}
+                        </span>
+                        <span className="tag tag-date">
+                          <Calendar size={12} />
+                          {formatDate(user.createdAt)}
+                        </span>
+                      </div>
+
+                      <div className="user-actions">
+                        <button
+                          className="btn-icon"
+                          title="Edit"
+                          onClick={() => setEditingItem({
+                            type: "user",
+                            id: user.id,
+                            name: user.name,
+                            email: user.email,
+                            admin: user.admin,
+                            verified: user.verified
+                          })}
+                        >
+                          <Edit2 size={15} />
+                        </button>
+                        <button
+                          className="btn-icon btn-icon-danger"
+                          title="Delete"
+                          onClick={() => setDeletingItem({
+                            type: "user",
+                            id: user.id,
+                            name: user.name
+                          })}
+                        >
+                          <Trash2 size={15} />
+                        </button>
+                        {user.restaurants?.length > 0 && (
+                          <button
+                            className={`btn-icon ${expandedUsers.has(user.id) ? "rotate" : ""}`}
+                            title="Restaurants"
+                            onClick={() => toggleUserExpand(user.id)}
+                          >
+                            <ChevronDown size={15} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {expandedUsers.has(user.id) && user.restaurants?.length > 0 && (
+                      <div className="restaurants-section">
+                        <div className="restaurants-section-title">
+                          <Store size={14} />
+                          Restaurants ({user.restaurants.length})
+                        </div>
+                        <div className="restaurants-grid">
+                          {user.restaurants.map(rest => (
+                            <div key={rest.id} className="rest-card">
+                              <div className="rest-card-header">
+                                <h4>{rest.name}</h4>
+                                <span className={`plan-tag plan-${rest.plan.toLowerCase()}`}>
+                                  {rest.plan}
+                                </span>
+                              </div>
+                              <div className="rest-card-details">
+                                {rest.phone && (
+                                  <div className="rest-detail">
+                                    <Phone size={13} />
+                                    {rest.phone}
+                                  </div>
+                                )}
+                                {rest.address && (
+                                  <div className="rest-detail">
+                                    <MapPin size={13} />
+                                    <span className="truncate">{rest.address}</span>
+                                  </div>
+                                )}
+                                <div className="rest-detail rest-detail-date">
+                                  <Calendar size={13} />
+                                  Created {formatDate(rest.createdAt)}
+                                </div>
+                              </div>
+                              <div className="rest-card-actions">
+                                <button
+                                  className="btn-sm"
+                                  onClick={() => setEditingItem({
+                                    type: "restaurant",
+                                    id: rest.id,
+                                    name: rest.name,
+                                    phone: rest.phone || "",
+                                    plan: rest.plan,
+                                    address: rest.address || ""
+                                  })}
+                                >
+                                  <Edit2 size={12} />
+                                  Edit
+                                </button>
+                                <button
+                                  className="btn-sm btn-sm-danger"
+                                  onClick={() => setDeletingItem({
+                                    type: "restaurant",
+                                    id: rest.id,
+                                    name: rest.name
+                                  })}
+                                >
+                                  <Trash2 size={12} />
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </>
         )}
       </main>
+
+      {editingItem && (
+        <div className="modal-overlay" onClick={() => setEditingItem(null)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Edit {editingItem.type}</h2>
+              <button className="modal-close" onClick={() => setEditingItem(null)}>
+                <XCircle size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="form-field">
+                <label>Name</label>
+                <input
+                  type="text"
+                  value={editingItem.name}
+                  onChange={e => setEditingItem({ ...editingItem, name: e.target.value })}
+                />
+              </div>
+
+              {editingItem.type === "user" && (
+                <>
+                  <div className="form-field">
+                    <label>Email</label>
+                    <input
+                      type="email"
+                      value={editingItem.email}
+                      onChange={e => setEditingItem({ ...editingItem, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-row">
+                    <div className="form-field">
+                      <label>Role</label>
+                      <select
+                        value={editingItem.admin ? "admin" : "user"}
+                        onChange={e => setEditingItem({ ...editingItem, admin: e.target.value === "admin" })}
+                      >
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                      </select>
+                    </div>
+                    <div className="form-field">
+                      <label>Status</label>
+                      <select
+                        value={editingItem.verified ? "verified" : "pending"}
+                        onChange={e => setEditingItem({ ...editingItem, verified: e.target.value === "verified" })}
+                      >
+                        <option value="verified">Verified</option>
+                        <option value="pending">Pending</option>
+                      </select>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {editingItem.type === "restaurant" && (
+                <>
+                  <div className="form-field">
+                    <label>Phone</label>
+                    <input
+                      type="text"
+                      value={editingItem.phone}
+                      onChange={e => setEditingItem({ ...editingItem, phone: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-field">
+                    <label>Plan</label>
+                    <select
+                      value={editingItem.plan}
+                      onChange={e => setEditingItem({ ...editingItem, plan: e.target.value })}
+                    >
+                      <option value="FREE">FREE</option>
+                      <option value="STARTER">STARTER</option>
+                      <option value="PRO">PRO</option>
+                      <option value="ENTERPRISE">ENTERPRISE</option>
+                    </select>
+                  </div>
+                  <div className="form-field">
+                    <label>Address</label>
+                    <input
+                      type="text"
+                      value={editingItem.address}
+                      onChange={e => setEditingItem({ ...editingItem, address: e.target.value })}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setEditingItem(null)}>
+                Cancel
+              </button>
+              <button className="btn-save" onClick={handleSave} disabled={saving}>
+                {saving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deletingItem && (
+        <div className="modal-overlay" onClick={() => setDeletingItem(null)}>
+          <div className="modal modal-sm" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Delete {deletingItem.type}</h2>
+              <button className="modal-close" onClick={() => setDeletingItem(null)}>
+                <XCircle size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>Are you sure you want to delete this {deletingItem.type}?</p>
+              <div className="delete-target">
+                <strong>{deletingItem.name}</strong>
+                <span className="delete-target-type">{deletingItem.type}</span>
+              </div>
+              <p className="delete-warning">This action cannot be undone. All associated data will be permanently removed.</p>
+            </div>
+            <div className="modal-footer">
+              <button className="btn-cancel" onClick={() => setDeletingItem(null)}>
+                Cancel
+              </button>
+              <button className="btn-delete" onClick={handleDelete} disabled={saving}>
+                {saving ? "Deleting..." : "Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

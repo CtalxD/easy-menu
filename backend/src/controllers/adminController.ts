@@ -218,12 +218,193 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
       orderBy: { createdAt: 'desc' },
     });
 
-    console.log('Users fetched:', users.length);
-    console.log('First user restaurants:', JSON.stringify(users[0]?.restaurants, null, 2));
-
     res.json(users);
   } catch (error) {
     console.error('Get all users error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Update user details
+export const updateUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.params.userId as string;
+    const { name, email, admin, verified } = req.body;
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!existingUser) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    // Check if email is being changed and if it's already taken
+    if (email && email !== existingUser.email) {
+      const emailExists = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (emailExists) {
+        res.status(400).json({ message: 'Email already in use by another user' });
+        return;
+      }
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(name && { name }),
+        ...(email && { email }),
+        ...(admin !== undefined && { admin }),
+        ...(verified !== undefined && { verified }),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        admin: true,
+        verified: true,
+        createdAt: true,
+        updatedAt: true,
+        restaurants: {
+          select: {
+            id: true,
+            name: true,
+            plan: true,
+            phone: true,
+            address: true,
+            description: true,
+            createdAt: true,
+          },
+        },
+        _count: {
+          select: { restaurants: true }
+        }
+      },
+    });
+
+    res.json({
+      message: 'User updated successfully',
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error('Update user error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Update restaurant details
+export const updateRestaurant = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.params.restaurantId as string;
+    const { name, phone, plan, address, description } = req.body;
+
+    const existingRestaurant = await prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+    });
+
+    if (!existingRestaurant) {
+      res.status(404).json({ message: 'Restaurant not found' });
+      return;
+    }
+
+    const updatedRestaurant = await prisma.restaurant.update({
+      where: { id: restaurantId },
+      data: {
+        ...(name && { name }),
+        ...(phone !== undefined && { phone }),
+        ...(plan && { plan: plan as any }),
+        ...(address !== undefined && { address }),
+        ...(description !== undefined && { description }),
+      },
+      select: {
+        id: true,
+        name: true,
+        plan: true,
+        phone: true,
+        address: true,
+        description: true,
+        createdAt: true,
+        owner: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      message: 'Restaurant updated successfully',
+      restaurant: updatedRestaurant,
+    });
+  } catch (error) {
+    console.error('Update restaurant error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+export const deleteUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const userId = req.params.userId as string;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { restaurants: true },
+    });
+
+    if (!user) {
+      res.status(404).json({ message: 'User not found' });
+      return;
+    }
+
+    // Don't allow deleting yourself
+    if (userId === (req as any).userId) {
+      res.status(400).json({ message: 'You cannot delete your own account' });
+      return;
+    }
+
+    // Delete all restaurants owned by user first
+    await prisma.restaurant.deleteMany({
+      where: { ownerId: userId },
+    });
+
+    // Delete the user
+    await prisma.user.delete({
+      where: { id: userId },
+    });
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    console.error('Delete user error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Delete restaurant
+export const deleteRestaurant = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.params.restaurantId as string;
+
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+    });
+
+    if (!restaurant) {
+      res.status(404).json({ message: 'Restaurant not found' });
+      return;
+    }
+
+    await prisma.restaurant.delete({
+      where: { id: restaurantId },
+    });
+
+    res.json({ message: 'Restaurant deleted successfully' });
+  } catch (error) {
+    console.error('Delete restaurant error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

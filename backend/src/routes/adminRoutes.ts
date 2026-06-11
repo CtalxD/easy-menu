@@ -7,25 +7,25 @@ import {
   getPendingSubscriptions, 
   approveSubscription, 
   rejectSubscription,
-  getAllUsers 
+  getAllUsers,
+  updateUser,
+  updateRestaurant,
+  deleteUser,
+  deleteRestaurant
 } from '../controllers/adminController';
 
 const router = Router();
 
-// All admin routes require authentication and admin privileges
 router.use(authenticateToken);
 router.use(isAdmin);
 
-// Get all pending subscriptions
 router.get('/subscriptions/pending', getPendingSubscriptions);
-
-// Approve a subscription
 router.post('/subscriptions/:subscriptionId/approve', approveSubscription);
-
-// Reject a subscription
 router.post('/subscriptions/:subscriptionId/reject', rejectSubscription);
-
-// Get all users
 router.get('/users', getAllUsers);
+router.put('/users/:userId', updateUser);
+router.put('/restaurants/:restaurantId', updateRestaurant);
+router.delete('/users/:userId', deleteUser);
+router.delete('/restaurants/:restaurantId', deleteRestaurant);
 
-export default router;  
+export default router;
