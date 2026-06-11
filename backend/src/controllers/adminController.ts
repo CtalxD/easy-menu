@@ -1,5 +1,4 @@
-// backend/src/controllers/adminController.ts
-
+// src/controllers/adminController.ts
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 
@@ -26,7 +25,78 @@ export const isAdmin = async (req: Request, res: Response, next: Function): Prom
   }
 };
 
-// Get all pending subscriptions
+// Get all subscriptions with optional filters
+export const getSubscriptions = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { status, plan, search, page = '1', limit = '20' } = req.query;
+    
+    const whereClause: any = {};
+    
+    // Filter by payment status
+    if (status && status !== 'ALL') {
+      whereClause.paymentStatus = status as string;
+    }
+    
+    // Filter by plan
+    if (plan && plan !== 'ALL') {
+      whereClause.plan = plan as string;
+    }
+    
+    // Search by owner name or email
+    if (search) {
+      whereClause.restaurant = {
+        owner: {
+          OR: [
+            { name: { contains: search as string, mode: 'insensitive' } },
+            { email: { contains: search as string, mode: 'insensitive' } },
+          ],
+        },
+      };
+    }
+    
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 20;
+    const skip = (pageNum - 1) * limitNum;
+
+    const [subscriptions, totalCount] = await Promise.all([
+      prisma.subscription.findMany({
+        where: whereClause,
+        include: {
+          restaurant: {
+            include: {
+              owner: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+        },
+        orderBy: { purchasedAt: 'desc' },
+        skip,
+        take: limitNum,
+      }),
+      prisma.subscription.count({ where: whereClause }),
+    ]);
+
+    res.json({
+      subscriptions,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limitNum),
+      },
+    });
+  } catch (error) {
+    console.error('Get subscriptions error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Get all pending subscriptions (legacy endpoint)
 export const getPendingSubscriptions = async (req: Request, res: Response): Promise<void> => {
   try {
     const pendingSubscriptions = await prisma.subscription.findMany({
@@ -54,6 +124,51 @@ export const getPendingSubscriptions = async (req: Request, res: Response): Prom
   }
 };
 
+// Get subscription statistics
+export const getSubscriptionStats = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const [
+      totalCount,
+      pendingCount,
+      completedCount,
+      failedCount,
+      refundedCount,
+      completedSubscriptions,
+    ] = await Promise.all([
+      prisma.subscription.count(),
+      prisma.subscription.count({ where: { paymentStatus: 'PENDING' } }),
+      prisma.subscription.count({ where: { paymentStatus: 'COMPLETED' } }),
+      prisma.subscription.count({ where: { paymentStatus: 'FAILED' } }),
+      prisma.subscription.count({ where: { paymentStatus: 'REFUNDED' } }),
+      prisma.subscription.findMany({
+        where: { paymentStatus: 'COMPLETED' },
+        select: { price: true, plan: true },
+      }),
+    ]);
+
+    const totalRevenue = completedSubscriptions.reduce((sum, sub) => sum + sub.price, 0);
+    
+    // Plan breakdown for completed subscriptions
+    const planBreakdown = completedSubscriptions.reduce((acc: any, sub) => {
+      acc[sub.plan] = (acc[sub.plan] || 0) + sub.price;
+      return acc;
+    }, {});
+
+    res.json({
+      totalCount,
+      pendingCount,
+      completedCount,
+      failedCount,
+      refundedCount,
+      totalRevenue,
+      planBreakdown,
+    });
+  } catch (error) {
+    console.error('Get subscription stats error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 // Approve a subscription
 export const approveSubscription = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -73,11 +188,16 @@ export const approveSubscription = async (req: Request, res: Response): Promise<
       return;
     }
 
+    // Update subscription status
     await prisma.subscription.update({
       where: { id: subscriptionId },
-      data: { paymentStatus: 'COMPLETED' },
+      data: { 
+        paymentStatus: 'COMPLETED',
+        updatedAt: new Date(),
+      },
     });
 
+    // Update restaurant plan
     await prisma.restaurant.update({
       where: { id: subscription.restaurantId },
       data: { plan: subscription.plan },
@@ -85,6 +205,10 @@ export const approveSubscription = async (req: Request, res: Response): Promise<
 
     res.json({ 
       message: 'Subscription approved and plan upgraded successfully',
+      subscription: {
+        id: subscriptionId,
+        status: 'COMPLETED',
+      },
     });
   } catch (error) {
     console.error('Approve subscription error:', error);
@@ -96,6 +220,7 @@ export const approveSubscription = async (req: Request, res: Response): Promise<
 export const rejectSubscription = async (req: Request, res: Response): Promise<void> => {
   try {
     const subscriptionId = req.params.subscriptionId as string;
+    const { reason } = req.body;
 
     const subscription = await prisma.subscription.findUnique({
       where: { id: subscriptionId },
@@ -113,11 +238,19 @@ export const rejectSubscription = async (req: Request, res: Response): Promise<v
 
     await prisma.subscription.update({
       where: { id: subscriptionId },
-      data: { paymentStatus: 'FAILED' },
+      data: { 
+        paymentStatus: 'FAILED',
+        updatedAt: new Date(),
+      },
     });
 
     res.json({ 
-      message: 'Subscription rejected',
+      message: 'Subscription rejected successfully',
+      subscription: {
+        id: subscriptionId,
+        status: 'FAILED',
+        reason: reason || 'Rejected by admin',
+      },
     });
   } catch (error) {
     console.error('Reject subscription error:', error);
@@ -165,6 +298,11 @@ export const getSubscriptionStatus = async (req: Request, res: Response): Promis
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     const searchQuery = req.query.search as string || '';
+    const planFilter = req.query.plan as string || '';
+    const statusFilter = req.query.status as string || '';
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 50;
+    const skip = (page - 1) * limit;
 
     const whereClause: any = {};
     
@@ -189,36 +327,63 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
       ];
     }
 
-    const users = await prisma.user.findMany({
-      where: whereClause,
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        admin: true,
-        verified: true,
-        createdAt: true,
-        updatedAt: true,
-        restaurants: {
-          select: {
-            id: true,
-            name: true,
-            plan: true,
-            phone: true,
-            address: true,
-            description: true,
-            createdAt: true,
-          },
-          orderBy: { createdAt: 'asc' },
-        },
-        _count: {
-          select: { restaurants: true }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+    if (statusFilter === 'verified') {
+      whereClause.verified = true;
+    } else if (statusFilter === 'unverified') {
+      whereClause.verified = false;
+    }
 
-    res.json(users);
+    if (planFilter) {
+      whereClause.restaurants = {
+        some: {
+          plan: planFilter
+        }
+      };
+    }
+
+    const [users, totalCount] = await Promise.all([
+      prisma.user.findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          admin: true,
+          verified: true,
+          createdAt: true,
+          updatedAt: true,
+          restaurants: {
+            select: {
+              id: true,
+              name: true,
+              plan: true,
+              phone: true,
+              address: true,
+              description: true,
+              createdAt: true,
+            },
+            orderBy: { createdAt: 'asc' },
+          },
+          _count: {
+            select: { restaurants: true }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.user.count({ where: whereClause }),
+    ]);
+
+    res.json({
+      users,
+      pagination: {
+        page,
+        limit,
+        total: totalCount,
+        totalPages: Math.ceil(totalCount / limit),
+      },
+    });
   } catch (error) {
     console.error('Get all users error:', error);
     res.status(500).json({ message: 'Internal server error' });
@@ -405,6 +570,105 @@ export const deleteRestaurant = async (req: Request, res: Response): Promise<voi
     res.json({ message: 'Restaurant deleted successfully' });
   } catch (error) {
     console.error('Delete restaurant error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Get admin dashboard overview stats
+export const getDashboardOverview = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - 7);
+
+    const [
+      totalUsers,
+      newUsersThisMonth,
+      newUsersThisWeek,
+      totalRestaurants,
+      pendingSubscriptions,
+      completedSubscriptions,
+      totalRevenue,
+      users,
+      recentSubscriptions,
+    ] = await Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { createdAt: { gte: monthStart } } }),
+      prisma.user.count({ where: { createdAt: { gte: weekStart } } }),
+      prisma.restaurant.count(),
+      prisma.subscription.count({ where: { paymentStatus: 'PENDING' } }),
+      prisma.subscription.count({ where: { paymentStatus: 'COMPLETED' } }),
+      prisma.subscription.aggregate({
+        where: { paymentStatus: 'COMPLETED' },
+        _sum: { price: true },
+      }),
+      prisma.user.findMany({
+        select: {
+          restaurants: {
+            select: { plan: true },
+          },
+        },
+      }),
+      prisma.subscription.findMany({
+        where: {
+          OR: [
+            { paymentStatus: 'PENDING' },
+            { purchasedAt: { gte: weekStart } },
+          ],
+        },
+        include: {
+          restaurant: {
+            include: {
+              owner: {
+                select: { id: true, name: true, email: true },
+              },
+            },
+          },
+        },
+        orderBy: { purchasedAt: 'desc' },
+        take: 10,
+      }),
+    ]);
+
+    // Plan distribution
+    const planDistribution = {
+      FREE: 0,
+      STARTER: 0,
+      PRO: 0,
+      ENTERPRISE: 0,
+    };
+
+    users.forEach((user) => {
+      user.restaurants.forEach((rest) => {
+        if (planDistribution.hasOwnProperty(rest.plan)) {
+          planDistribution[rest.plan as keyof typeof planDistribution]++;
+        }
+      });
+    });
+
+    // Recent activity
+    const recentActivity = recentSubscriptions.map((sub) => ({
+      type: 'subscription',
+      message: sub.paymentStatus === 'PENDING'
+        ? `${sub.restaurant.owner.name} requested ${sub.plan} plan`
+        : `${sub.restaurant.owner.name} ${sub.paymentStatus.toLowerCase()} ${sub.plan} plan`,
+      timestamp: sub.purchasedAt,
+    }));
+
+    res.json({
+      totalUsers,
+      newUsersThisMonth,
+      newUsersThisWeek,
+      totalRestaurants,
+      pendingSubscriptions,
+      completedSubscriptions,
+      totalRevenue: totalRevenue._sum.price || 0,
+      planDistribution,
+      recentActivity,
+    });
+  } catch (error) {
+    console.error('Get dashboard overview error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };
