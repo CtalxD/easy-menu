@@ -67,4 +67,9 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
+// START THE SERVER
+app.listen(port, () => {
+  console.log(`Server running on http://localhost:${port}`);
+});
+
 export default app;

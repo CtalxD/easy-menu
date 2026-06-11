@@ -1,3 +1,4 @@
+// admin/app/login/page.tsx
 "use client";
 
 import { useState, FormEvent } from "react";
@@ -15,7 +16,6 @@ interface LoginResponse {
     email: string;
     admin: boolean;
     verified: boolean;
-    restaurantId: string | null;
     restaurant: {
       id: string;
       name: string;
@@ -31,17 +31,24 @@ export default function AdminLoginPage() {
   const [showPassword, setShowPassword] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(false);
+  const [debugInfo, setDebugInfo] = useState<string>("");
   const currentYear: string = new Date().getFullYear().toString();
 
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setError("");
+    setDebugInfo("");
     setLoading(true);
 
     try {
+      // Get API URL from environment or use default
       const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
+      const loginUrl = `${API_URL}/api/auth/login`;
       
-      const response = await fetch(`${API_URL}/api/auth/login`, {
+      console.log('Attempting login to:', loginUrl);
+      setDebugInfo(`Connecting to: ${loginUrl}`);
+
+      const response = await fetch(loginUrl, {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
@@ -54,36 +61,67 @@ export default function AdminLoginPage() {
         }),
       });
 
+      console.log('Response status:', response.status);
+      setDebugInfo(`Response status: ${response.status}`);
+
       const data: LoginResponse = await response.json();
+      console.log('Login response:', data);
 
+      // Check if login was successful
       if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
+        throw new Error(data.message || 'Invalid email or password');
       }
 
-      if (!data.user?.admin) {
-        throw new Error('Access denied. Staff privileges required.');
+      // Check if user exists in response
+      if (!data.user) {
+        throw new Error('User account not found');
       }
 
+      // Check if user has admin privileges
+      if (!data.user.admin) {
+        throw new Error('Access denied. Administrator privileges required. This area is restricted to authorized staff only.');
+      }
+
+      // Verify we received an access token
+      if (!data.accessToken) {
+        throw new Error('Authentication failed. No access token received.');
+      }
+
+      // Store admin session data
       localStorage.setItem('adminToken', data.accessToken);
-      localStorage.setItem('adminUser', JSON.stringify(data.user));
+      localStorage.setItem('adminUser', JSON.stringify({
+        id: data.user.id,
+        name: data.user.name,
+        email: data.user.email,
+        admin: data.user.admin,
+        verified: data.user.verified,
+        restaurant: data.user.restaurant
+      }));
       
-      if (data.user.restaurantId) {
-        localStorage.setItem('adminRestaurantId', data.user.restaurantId);
-        localStorage.setItem('adminRestaurantName', data.user.restaurant?.name || '');
-        localStorage.setItem('adminRestaurantPlan', data.user.restaurant?.plan || 'FREE');
+      // Store restaurant info if available
+      if (data.user.restaurant) {
+        localStorage.setItem('adminRestaurantId', data.user.restaurant.id);
+        localStorage.setItem('adminRestaurantName', data.user.restaurant.name);
+        localStorage.setItem('adminRestaurantPlan', data.user.restaurant.plan);
       }
 
-      router.push('/dashboard');
+      setDebugInfo('Login successful! Redirecting...');
+      
+      // Small delay to show success message
+      setTimeout(() => {
+        router.push('/dashboard');
+      }, 500);
       
     } catch (err: unknown) {
-      console.error('Login error:', err);
+      console.error('Admin login error:', err);
       
       if (err instanceof TypeError && err.message === 'Failed to fetch') {
-        setError('Unable to connect to server. Please try again later.');
+        setError('Unable to connect to server. Please check:\n• Backend server is running on port 5000\n• CORS is properly configured\n• No browser extensions blocking requests');
+        setDebugInfo('Connection failed - check if backend is running');
       } else if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError('An unexpected error occurred');
+        setError('An unexpected error occurred. Please try again.');
       }
     } finally {
       setLoading(false);
@@ -107,15 +145,36 @@ export default function AdminLoginPage() {
             </p>
           </div>
 
-          {/* Error */}
+          {/* Error Message */}
           {error && (
             <div className="error-alert">
               <AlertCircle size={16} />
-              <span>{error}</span>
+              <div>
+                {error.split('\n').map((line, index) => (
+                  <span key={index}>
+                    {line}
+                    <br />
+                  </span>
+                ))}
+              </div>
             </div>
           )}
 
-          {/* Form */}
+          {/* Debug Info */}
+          {debugInfo && (
+            <div className="debug-info" style={{
+              backgroundColor: '#f0f0f0',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              marginBottom: '16px',
+              fontSize: '12px',
+              color: '#666'
+            }}>
+              {debugInfo}
+            </div>
+          )}
+
+          {/* Login Form */}
           <form onSubmit={handleSubmit} className="login-form">
             <div className="form-group">
               <label htmlFor="email">Email Address</label>

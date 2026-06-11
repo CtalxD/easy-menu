@@ -73,13 +73,11 @@ export const approveSubscription = async (req: Request, res: Response): Promise<
       return;
     }
 
-    // Approve subscription
     await prisma.subscription.update({
       where: { id: subscriptionId },
       data: { paymentStatus: 'COMPLETED' },
     });
 
-    // Upgrade the restaurant plan
     await prisma.restaurant.update({
       where: { id: subscription.restaurantId },
       data: { plan: subscription.plan },
@@ -87,10 +85,6 @@ export const approveSubscription = async (req: Request, res: Response): Promise<
 
     res.json({ 
       message: 'Subscription approved and plan upgraded successfully',
-      subscription: {
-        ...subscription,
-        paymentStatus: 'COMPLETED',
-      },
     });
   } catch (error) {
     console.error('Approve subscription error:', error);
@@ -117,7 +111,6 @@ export const rejectSubscription = async (req: Request, res: Response): Promise<v
       return;
     }
 
-    // Reject subscription
     await prisma.subscription.update({
       where: { id: subscriptionId },
       data: { paymentStatus: 'FAILED' },
@@ -125,10 +118,6 @@ export const rejectSubscription = async (req: Request, res: Response): Promise<v
 
     res.json({ 
       message: 'Subscription rejected',
-      subscription: {
-        ...subscription,
-        paymentStatus: 'FAILED',
-      },
     });
   } catch (error) {
     console.error('Reject subscription error:', error);
@@ -168,6 +157,73 @@ export const getSubscriptionStatus = async (req: Request, res: Response): Promis
     });
   } catch (error) {
     console.error('Get subscription status error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Get all users with restaurant details
+export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const searchQuery = req.query.search as string || '';
+
+    const whereClause: any = {};
+    
+    if (searchQuery) {
+      whereClause.OR = [
+        { name: { contains: searchQuery, mode: 'insensitive' } },
+        { email: { contains: searchQuery, mode: 'insensitive' } },
+        {
+          restaurants: {
+            some: {
+              name: { contains: searchQuery, mode: 'insensitive' }
+            }
+          }
+        },
+        {
+          restaurants: {
+            some: {
+              phone: { contains: searchQuery, mode: 'insensitive' }
+            }
+          }
+        }
+      ];
+    }
+
+    const users = await prisma.user.findMany({
+      where: whereClause,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        admin: true,
+        verified: true,
+        createdAt: true,
+        updatedAt: true,
+        restaurants: {
+          select: {
+            id: true,
+            name: true,
+            plan: true,
+            phone: true,
+            address: true,
+            description: true,
+            createdAt: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        },
+        _count: {
+          select: { restaurants: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    console.log('Users fetched:', users.length);
+    console.log('First user restaurants:', JSON.stringify(users[0]?.restaurants, null, 2));
+
+    res.json(users);
+  } catch (error) {
+    console.error('Get all users error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

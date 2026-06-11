@@ -110,8 +110,9 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         id: user.id,
         name: user.name,
         email: user.email,
-         admin: user.admin,
-        restaurant: user.restaurants[0]
+        admin: user.admin,
+        verified: user.verified,
+        restaurant: user.restaurants[0] || null
       }
     });
   } catch (error) {
@@ -168,7 +169,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         id: user.id,
         name: user.name,
         email: user.email,
-         admin: user.admin,
+        admin: user.admin,
+        verified: user.verified,
         restaurant: user.restaurants[0] || null
       }
     });
@@ -209,7 +211,10 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     }
 
     const user = await prisma.user.findUnique({
-      where: { id: decoded.userId }
+      where: { id: decoded.userId },
+      include: {
+        restaurants: true
+      }
     });
 
     if (!user) {
@@ -221,7 +226,15 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
 
     res.json({
       accessToken: newAccessToken,
-      expiresIn: 86400
+      expiresIn: 86400,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        admin: user.admin,
+        verified: user.verified,
+        restaurant: user.restaurants[0] || null
+      }
     });
   } catch (error) {
     console.error('Token refresh error:', error);
@@ -319,6 +332,8 @@ export const verifyToken = async (req: Request, res: Response): Promise<void> =>
         id: user.id,
         name: user.name,
         email: user.email,
+        admin: user.admin,
+        verified: user.verified,
         restaurant: user.restaurants[0] || null
       }
     });

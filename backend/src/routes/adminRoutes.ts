@@ -6,7 +6,8 @@ import {
   isAdmin, 
   getPendingSubscriptions, 
   approveSubscription, 
-  rejectSubscription 
+  rejectSubscription,
+  getAllUsers 
 } from '../controllers/adminController';
 
 const router = Router();
@@ -24,4 +25,7 @@ router.post('/subscriptions/:subscriptionId/approve', approveSubscription);
 // Reject a subscription
 router.post('/subscriptions/:subscriptionId/reject', rejectSubscription);
 
-export default router;
+// Get all users
+router.get('/users', getAllUsers);
+
+export default router;  

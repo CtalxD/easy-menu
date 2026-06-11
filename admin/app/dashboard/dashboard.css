@@ -1,11 +1,30 @@
 /* admin/app/dashboard/dashboard.css */
+
+/* ============================================ */
+/* CSS Variables (add to your global CSS if not present) */
+/* ============================================ */
+:root {
+  --bg-primary: #FAF7F2;
+  --bg-secondary: #FFFFFF;
+  --border: #E8E0D5;
+  --text-primary: #1A1510;
+  --text-secondary: #4A4540;
+  --text-muted: #9B9590;
+  --accent: #C45E3A;
+}
+
+/* ============================================ */
+/* Layout */
+/* ============================================ */
 .admin-dashboard {
   display: flex;
   min-height: 100vh;
   background: var(--bg-primary);
 }
 
+/* ============================================ */
 /* Sidebar */
+/* ============================================ */
 .admin-sidebar {
   width: 280px;
   background: var(--bg-secondary);
@@ -115,7 +134,9 @@
   background: rgba(239, 68, 68, 0.2);
 }
 
+/* ============================================ */
 /* Main Content */
+/* ============================================ */
 .admin-main {
   flex: 1;
   padding: 2rem;
@@ -133,6 +154,12 @@
   font-size: 1.5rem;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 }
 
 .refresh-btn {
@@ -176,7 +203,42 @@
   font-size: 1.25rem;
 }
 
+/* ============================================ */
+/* Search Box */
+/* ============================================ */
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.5rem 0.75rem;
+  min-width: 320px;
+}
+
+.search-box svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.search-box input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-family: inherit;
+}
+
+.search-box input::placeholder {
+  color: var(--text-muted);
+}
+
+/* ============================================ */
 /* Subscriptions Grid */
+/* ============================================ */
 .subscriptions-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -292,11 +354,280 @@
   cursor: not-allowed;
 }
 
+/* ============================================ */
+/* Users Table */
+/* ============================================ */
+.users-table-container {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.users-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.users-table thead {
+  background: var(--bg-primary);
+  border-bottom: 2px solid var(--border);
+}
+
+.users-table th {
+  padding: 1rem 1.25rem;
+  text-align: left;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.users-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.2s ease;
+}
+
+.users-table tbody tr:hover {
+  background: var(--bg-primary);
+}
+
+.users-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.users-table td {
+  padding: 1rem 1.25rem;
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  vertical-align: middle;
+}
+
+/* User Cell */
+.user-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.user-display-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.user-id-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Email Cell */
+.email-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.email-cell svg {
+  color: var(--text-muted);
+}
+
+/* Verified Cell */
+.verified-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.verified-text {
+  color: #4ADE80;
+  font-size: 0.8125rem;
+}
+
+.pending-text {
+  color: #FBBF24;
+  font-size: 0.8125rem;
+}
+
+/* Restaurant Count Cell */
+.restaurant-count-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.restaurant-count-cell svg {
+  color: var(--text-muted);
+}
+
+/* Date Cell */
+.date-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.date-cell svg {
+  color: var(--text-muted);
+}
+
+/* Role Badge */
+.role-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.role-badge.admin {
+  background: rgba(245, 158, 11, 0.2);
+  color: #FBBF24;
+}
+
+.role-badge.user {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60A5FA;
+}
+
+/* Verified Icons */
+.verified-icon {
+  color: #4ADE80;
+}
+
+.pending-icon {
+  color: #FBBF24;
+}
+
+/* Expand Button */
+.expand-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+
+.expand-btn:hover {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+/* Expanded Row */
+.expanded-row {
+  background: rgba(196, 94, 58, 0.03);
+}
+
+.expanded-row:hover {
+  background: rgba(196, 94, 58, 0.06) !important;
+}
+
+/* Restaurant Details Row */
+.restaurant-details-row td {
+  padding: 0 !important;
+  background: var(--bg-primary);
+  border-bottom: 2px solid var(--border);
+}
+
+.restaurant-details {
+  padding: 1.5rem 2rem;
+}
+
+.restaurant-details h4 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.restaurant-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.restaurant-mini-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.restaurant-mini-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.restaurant-mini-header svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.restaurant-mini-name {
+  flex: 1;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.restaurant-mini-body {
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.restaurant-mini-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.restaurant-mini-item svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* ============================================ */
 /* Empty State */
+/* ============================================ */
 .empty-state {
   grid-column: 1 / -1;
   text-align: center;
   padding: 4rem 2rem;
+  color: var(--text-muted);
+}
+
+.empty-state svg {
+  margin-bottom: 0.5rem;
   color: var(--text-muted);
 }
 
@@ -310,7 +641,9 @@
   font-size: 0.875rem;
 }
 
+/* ============================================ */
 /* Loading */
+/* ============================================ */
 .admin-loading {
   min-height: 100vh;
   display: flex;
@@ -328,5 +661,65 @@
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+/* ============================================ */
+/* Responsive */
+/* ============================================ */
+@media (max-width: 768px) {
+  .admin-sidebar {
+    width: 80px;
+    padding: 1rem;
+  }
+
+  .sidebar-header h2,
+  .nav-item span,
+  .admin-info,
+  .logout-btn span {
+    display: none;
+  }
+
+  .nav-item {
+    justify-content: center;
+  }
+
+  .logout-btn {
+    justify-content: center;
+    padding: 0.5rem;
+  }
+
+  .admin-main {
+    padding: 1rem;
+  }
+
+  .header-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .search-box {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .users-table th,
+  .users-table td {
+    padding: 0.75rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  .user-avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 0.75rem;
+  }
+
+  .restaurant-list {
+    grid-template-columns: 1fr;
+  }
+
+  .restaurant-details {
+    padding: 1rem;
   }
 }
