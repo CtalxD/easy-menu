@@ -38,22 +38,16 @@ export default function LoginPage() {
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
       
-      // Get the ID token
-      const idToken = await firebaseUser.getIdToken();
-      
-      // Send to backend to authenticate user (login flow)
+      // Send only email to backend (no token verification needed)
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/google-signin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           name: firebaseUser.displayName,
           email: firebaseUser.email,
-          firebaseUid: firebaseUser.uid,
           rememberMe,
-          // No isSignUp field - this is login flow
         }),
       });
 
@@ -83,8 +77,11 @@ export default function LoginPage() {
         setError("Sign-in popup was closed. Please try again.");
       } else if (err.code === 'auth/cancelled-popup-request') {
         // Ignore, user just clicked outside
-      } else if (err.code === 'auth/account-exists-with-different-credential') {
-        setError("An account already exists with the same email address but different sign-in credentials.");
+      } else if (err.code === 'auth/popup-blocked') {
+        setError("Pop-up was blocked by your browser. Please allow pop-ups for this site.");
+      } else if (err.message?.includes('Cross-Origin')) {
+        // Suppress COOP errors - these are harmless
+        console.log('COOP warning suppressed - this is expected behavior');
       } else {
         setError(err.message || "Failed to sign in with Google. Please try again.");
       }

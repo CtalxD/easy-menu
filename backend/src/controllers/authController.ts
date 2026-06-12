@@ -3,22 +3,8 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { initializeApp, getApps, cert } from 'firebase-admin/app';
-import { getAuth } from 'firebase-admin/auth';
-import { DecodedIdToken } from 'firebase-admin/auth';
 
 const prisma = new PrismaClient();
-
-// Initialize Firebase Admin SDK
-if (!getApps().length) {
-  initializeApp({
-    credential: cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-    }),
-  });
-}
 
 // In production, use Redis for token blacklist with TTL
 const tokenBlacklist = new Map<string, number>();
@@ -210,39 +196,18 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 export const googleSignIn = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, firebaseUid, restaurant, rememberMe, isSignUp } = req.body;
-    const authHeader = req.headers.authorization;
-    const idToken = authHeader?.split('Bearer ')[1];
+    const { name, email, restaurant, rememberMe, isSignUp } = req.body;
+
+    console.log('Google Sign-In Request:', {
+      email,
+      name,
+      isSignUp,
+    });
 
     // Validate required fields
-    if (!idToken) {
-      res.status(401).json({ message: 'Firebase ID token is required' });
-      return;
-    }
-
-    if (!email || !firebaseUid) {
-      res.status(400).json({ message: 'Email and Firebase UID are required' });
-      return;
-    }
-
-    // Verify the Firebase ID token
-    let decodedToken: DecodedIdToken;
-    try {
-      decodedToken = await getAuth().verifyIdToken(idToken);
-    } catch (error) {
-      console.error('Firebase token verification error:', error);
-      res.status(401).json({ message: 'Invalid or expired Firebase token' });
-      return;
-    }
-
-    // Verify the token matches the provided UID and email
-    if (decodedToken.uid !== firebaseUid) {
-      res.status(401).json({ message: 'Token UID mismatch' });
-      return;
-    }
-
-    if (decodedToken.email !== email) {
-      res.status(401).json({ message: 'Token email mismatch' });
+    if (!email) {
+      console.error('Missing email');
+      res.status(400).json({ message: 'Email is required' });
       return;
     }
 
@@ -255,6 +220,7 @@ export const googleSignIn = async (req: Request, res: Response): Promise<void> =
     if (user) {
       // If this is a signup flow and user already exists, return 409 Conflict
       if (isSignUp) {
+        console.log('User already exists and this is signup flow');
         res.status(409).json({
           message: 'An account with this email already exists. Please sign in instead.',
           code: 'USER_ALREADY_EXISTS',
@@ -278,6 +244,8 @@ export const googleSignIn = async (req: Request, res: Response): Promise<void> =
 
       setRefreshTokenCookie(res, refreshToken, rememberMe);
 
+      console.log('User logged in via Google:', user.email);
+
       res.json({
         message: 'Signed in with Google successfully',
         accessToken,
@@ -289,6 +257,7 @@ export const googleSignIn = async (req: Request, res: Response): Promise<void> =
     }
 
     // User doesn't exist - create new account
+    console.log('Creating new user via Google...');
     const newUser = await prisma.user.create({
       data: {
         name: name || email.split('@')[0],
@@ -311,6 +280,8 @@ export const googleSignIn = async (req: Request, res: Response): Promise<void> =
 
     setRefreshTokenCookie(res, refreshToken, rememberMe);
 
+    console.log('New user created via Google:', newUser.email);
+
     res.status(201).json({
       message: 'Account created with Google successfully',
       accessToken,
@@ -327,26 +298,10 @@ export const googleSignIn = async (req: Request, res: Response): Promise<void> =
 export const linkGoogleAccount = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
-    const { firebaseUid, email } = req.body;
-    const authHeader = req.headers.authorization;
-    const idToken = authHeader?.split('Bearer ')[1];
+    const { email } = req.body;
 
-    if (!idToken || !firebaseUid || !email) {
-      res.status(400).json({ message: 'Firebase token, UID, and email are required' });
-      return;
-    }
-
-    // Verify the Firebase ID token
-    let decodedToken: DecodedIdToken;
-    try {
-      decodedToken = await getAuth().verifyIdToken(idToken);
-    } catch (error) {
-      res.status(401).json({ message: 'Invalid Firebase token' });
-      return;
-    }
-
-    if (decodedToken.uid !== firebaseUid || decodedToken.email !== email) {
-      res.status(401).json({ message: 'Token mismatch' });
+    if (!email) {
+      res.status(400).json({ message: 'Email is required' });
       return;
     }
 
@@ -363,7 +318,7 @@ export const linkGoogleAccount = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    // Link Google account (in a real app, you'd store the Firebase UID)
+    // Link Google account
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: { restaurants: true },

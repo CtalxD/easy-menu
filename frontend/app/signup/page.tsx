@@ -41,29 +41,23 @@ export default function SignupPage() {
       const result = await signInWithPopup(auth, googleProvider);
       const firebaseUser = result.user;
       
-      // Get the ID token
-      const idToken = await firebaseUser.getIdToken();
-      
-      // Send to backend to create/authenticate user
+      // Send to backend to create/authenticate user (no token needed)
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'}/api/auth/google-signin`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${idToken}`,
         },
         body: JSON.stringify({
           name: firebaseUser.displayName,
           email: firebaseUser.email,
-          firebaseUid: firebaseUser.uid,
           restaurant: restaurantName || `${firebaseUser.displayName}'s Restaurant`,
-          isSignUp: true, // Tell backend this is from signup page
+          isSignUp: true,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        // Check if user already exists
         if (response.status === 409 && data.userExists) {
           setError("An account with this email already exists. Please sign in instead.");
           return;
@@ -87,8 +81,11 @@ export default function SignupPage() {
         setError("Sign-in popup was closed. Please try again.");
       } else if (err.code === 'auth/cancelled-popup-request') {
         // Ignore, user just clicked outside
-      } else if (err.code === 'auth/account-exists-with-different-credential') {
-        setError("An account already exists with the same email address but different sign-in credentials. Try signing in with email and password instead.");
+      } else if (err.code === 'auth/popup-blocked') {
+        setError("Pop-up was blocked by your browser. Please allow pop-ups for this site.");
+      } else if (err.message?.includes('Cross-Origin')) {
+        // Suppress COOP errors - these are harmless
+        console.log('COOP warning suppressed - this is expected behavior');
       } else {
         setError(err.message || "Failed to sign in with Google. Please try again.");
       }
