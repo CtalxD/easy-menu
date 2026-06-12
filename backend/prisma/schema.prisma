@@ -34,17 +34,18 @@ enum DeviceType {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
+  id        String    @id @default(uuid())
+  email     String    @unique
   name      String
-  password  String
-  verified  Boolean  @default(false)
-  admin     Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  password  String?   // Nullable for Google-only accounts
+  verified  Boolean   @default(false)
+  admin     Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  restaurants        Restaurant[]
-  verificationTokens VerificationToken[]
+  restaurants         Restaurant[]
+  verificationTokens  VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
 }
 
 model Restaurant {
@@ -177,6 +178,8 @@ model PasswordResetToken {
   expiresAt DateTime
   createdAt DateTime @default(now())
   used      Boolean  @default(false)
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
   
   @@index([token])
   @@index([email])

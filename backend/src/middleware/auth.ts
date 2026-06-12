@@ -1,5 +1,4 @@
-//backend/src/middleware/auth.ts
-
+// backend/src/middleware/auth.ts
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
@@ -26,6 +25,27 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
     (req as any).userId = decoded.userId;
     next();
   } catch (error) {
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ 
+        message: 'Token has expired',
+        code: 'TOKEN_EXPIRED'
+      });
+      return;
+    }
+    
     res.status(401).json({ message: 'Invalid or expired token' });
   }
+};
+
+// Optional: Middleware to check if user is verified
+export const requireVerified = (req: Request, res: Response, next: NextFunction): void => {
+  const userId = (req as any).userId;
+  
+  if (!userId) {
+    res.status(401).json({ message: 'Authentication required' });
+    return;
+  }
+  
+  // You can add verification check here if needed
+  next();
 };
