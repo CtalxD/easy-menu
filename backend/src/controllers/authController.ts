@@ -1,10 +1,8 @@
 // backend/src/controllers/authController.ts
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-
-const prisma = new PrismaClient();
 
 // In production, use Redis for token blacklist with TTL
 const tokenBlacklist = new Map<string, number>();

@@ -1,9 +1,6 @@
 // backend/src/middleware/membership.ts
-
 import { Request, Response, NextFunction } from 'express';
-import { PrismaClient, Plan } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 const PLAN_LIMITS: Record<string, { items: number; categories: number }> = {
   FREE: { items: 10, categories: 5 },

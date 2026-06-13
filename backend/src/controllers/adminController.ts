@@ -1,8 +1,6 @@
-// src/controllers/adminController.ts
+// backend/src/controllers/adminController.ts
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 // Middleware to check if user is admin
 export const isAdmin = async (req: Request, res: Response, next: Function): Promise<void> => {

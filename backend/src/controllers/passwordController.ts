@@ -1,12 +1,9 @@
-// backend/src/controllers/passwordController.ts
-
+//backend/src/controllers/passwordController.ts
 import { Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../lib/prisma';
 import { Resend } from 'resend';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-
-const prisma = new PrismaClient();
 
 // Initialize Resend with your API key
 const resend = new Resend(process.env.RESEND_API_KEY || 're_jVfF6CLp_BP7deGtDuEJZgyJ4JGhX1WGC');

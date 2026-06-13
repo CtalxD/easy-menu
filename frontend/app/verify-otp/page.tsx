@@ -5,7 +5,7 @@ import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "../contexts/AuthContext";
-import { QrCode, Lock, ArrowRight, ArrowLeft, CheckCircle, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { QrCode, Lock, ArrowRight, ArrowLeft, CheckCircle, Eye, EyeOff, ShieldCheck, Sparkles, Mail } from "lucide-react";
 import "./verify-otp.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
@@ -26,6 +26,7 @@ function VerifyOTPForm() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
+  const [wasGoogleOnly, setWasGoogleOnly] = useState(false);
   
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -37,7 +38,7 @@ function VerifyOTPForm() {
         setEmail(storedEmail);
       }
     }
-  }, []);
+  }, [email]);
 
   // Auto-focus first OTP input
   useEffect(() => {
@@ -149,6 +150,10 @@ function VerifyOTPForm() {
         throw new Error(data.message || "Failed to reset password");
       }
 
+      if (data.wasGoogleOnly) {
+        setWasGoogleOnly(true);
+      }
+
       setSuccess(true);
       sessionStorage.removeItem("resetEmail");
 
@@ -201,9 +206,12 @@ function VerifyOTPForm() {
           <div className="verify-form-icon verify-success-icon">
             <CheckCircle size={28} strokeWidth={1.5} />
           </div>
-          <h2>Password changed!</h2>
+          <h2>Password {wasGoogleOnly ? "created" : "changed"}!</h2>
           <p className="verify-success-text">
-            Your password has been reset successfully. You can now sign in with your new password.
+            {wasGoogleOnly 
+              ? "A password has been created for your account. You can now sign in with your email and new password."
+              : "Your password has been reset successfully. You can now sign in with your new password."
+            }
           </p>
           <Link href="/login" className="verify-submit-btn">
             Go to sign in
@@ -284,6 +292,11 @@ function VerifyOTPForm() {
               </button>
             </p>
           </div>
+
+          <Link href="/forgot-password" className="verify-back-link-inline">
+            <ArrowLeft size={15} strokeWidth={2} />
+            Change email address
+          </Link>
         </>
       ) : (
         <>
@@ -356,13 +369,13 @@ function VerifyOTPForm() {
               )}
             </button>
           </form>
+
+          <Link href="/forgot-password" className="verify-back-link-inline">
+            <ArrowLeft size={15} strokeWidth={2} />
+            Back
+          </Link>
         </>
       )}
-
-      <Link href="/login" className="verify-back-link">
-        <ArrowLeft size={15} strokeWidth={2} />
-        Back to sign in
-      </Link>
     </div>
   );
 }
@@ -384,6 +397,7 @@ export default function VerifyOTPPage() {
   return (
     <div className="verify-root">
       <div className="verify-container">
+        {/* Left - Brand Panel (Same as forgot password) */}
         <div className="verify-brand">
           <Link href="/" className="verify-logo">
             <QrCode size={22} strokeWidth={2} />
@@ -391,13 +405,58 @@ export default function VerifyOTPPage() {
           </Link>
           
           <div className="verify-brand-content">
-            <h1>Secure your account</h1>
+            <h1>
+              Verify your <span>identity</span>
+            </h1>
             <p className="verify-brand-desc">
-              Verify your identity with the OTP sent to your email, then create a new password.
+              We've sent a 6-digit verification code to your email. Enter it below along with your new password to regain access to your account.
             </p>
+
+            <div className="verify-info-cards">
+              <div className="verify-info-card">
+                <div className="verify-info-icon-wrap">
+                  <Mail size={18} strokeWidth={1.5} />
+                </div>
+                <div className="verify-info-text">
+                  <span className="verify-info-title">Check your inbox</span>
+                  <p className="verify-info-desc">
+                    We sent the OTP to <strong>{sessionStorage.getItem("resetEmail") || "your email"}</strong>. Don't forget to check spam.
+                  </p>
+                </div>
+              </div>
+
+              <div className="verify-info-card">
+                <div className="verify-info-icon-wrap">
+                  <Sparkles size={18} strokeWidth={1.5} />
+                </div>
+                <div className="verify-info-text">
+                  <span className="verify-info-title">Secure recovery</span>
+                  <p className="verify-info-desc">
+                    OTP expires in 10 minutes for your security. If it expires, you can request a new one.
+                  </p>
+                </div>
+              </div>
+
+              <div className="verify-info-card">
+                <div className="verify-info-icon-wrap">
+                  <Lock size={18} strokeWidth={1.5} />
+                </div>
+                <div className="verify-info-text">
+                  <span className="verify-info-title">Create strong password</span>
+                  <p className="verify-info-desc">
+                    Use at least 8 characters with a mix of letters, numbers, and symbols for better security.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="verify-brand-footer">
+            <p>Secure & encrypted password recovery</p>
           </div>
         </div>
 
+        {/* Right - Form Panel */}
         <div className="verify-form-wrap">
           <Suspense fallback={
             <div className="verify-form-card">

@@ -1,9 +1,7 @@
 // backend/src/controllers/analyticsController.ts
-
 import { Request, Response } from 'express';
-import { PrismaClient, Plan, DeviceType } from '@prisma/client';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
+import { DeviceType } from '@prisma/client';
 
 function getDeviceType(userAgent: string): DeviceType {
   const ua = userAgent.toLowerCase();

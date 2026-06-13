@@ -1,13 +1,11 @@
-// backend/src/controllers/menuController.ts
-
+//backend/src/controllers/menuController.ts
 import { Request, Response } from 'express';
-import { PrismaClient, Plan, PaymentStatus, BillingCycle } from '@prisma/client';
+import { prisma } from '../lib/prisma';
+import { Plan, PaymentStatus, BillingCycle } from '@prisma/client';
 import QRCode from 'qrcode';
 import sharp from 'sharp';
 import path from 'path';
 import fs from 'fs';
-
-const prisma = new PrismaClient();
 
 const CATEGORY_ORDER = [
   "Appetizers", "Starters", "Soups", "Salads",
