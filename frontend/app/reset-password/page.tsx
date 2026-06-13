@@ -1,288 +1,237 @@
-// frontend/app/reset-password/page.tsx
-
+// frontend/app/forgot-password/page.tsx
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
-import { QrCode, Lock, ArrowRight, ArrowLeft, CheckCircle, Eye, EyeOff } from "lucide-react";
+import { QrCode, Mail, ArrowRight, ArrowLeft, CheckCircle, Send, Sparkles } from "lucide-react";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { auth } from "../lib/firebase";
 import "./reset-password.css";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
-function ResetPasswordForm() {
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const token = searchParams.get("token");
-  
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState(false);
-  const [validToken, setValidToken] = useState<boolean | null>(null);
-  const [validating, setValidating] = useState(true);
-
-  // Validate token on mount
-  useEffect(() => {
-    const validateToken = async () => {
-      if (!token) {
-        setValidToken(false);
-        setValidating(false);
-        setError("No reset token provided");
-        return;
-      }
-
-      try {
-        const response = await fetch(`${API_URL}/api/auth/validate-token?token=${token}`);
-        const data = await response.json();
-        
-        if (data.valid) {
-          setValidToken(true);
-        } else {
-          setValidToken(false);
-          setError(data.message || "Invalid or expired reset link");
-        }
-      } catch (err) {
-        setValidToken(false);
-        setError("Failed to validate reset link");
-      } finally {
-        setValidating(false);
-      }
-    };
-
-    validateToken();
-  }, [token]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError("");
-
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setError("Passwords don't match");
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const response = await fetch(`${API_URL}/api/auth/reset-password`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ resetToken: token, newPassword: password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to reset password');
-      }
-
-      setSuccess(true);
-      
-      // Clear stored reset token
-      localStorage.removeItem('resetToken');
-      
-      // Redirect to login after 3 seconds
-      setTimeout(() => {
-        router.push('/login');
-      }, 3000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reset password');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (validating) {
-    return (
-      <div className="reset-form-card">
-        <div className="reset-validating">
-          <div className="reset-spinner"></div>
-          <p>Validating your reset link...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!validToken) {
-    return (
-      <div className="reset-form-card">
-        <div className="reset-error-state">
-          <div className="reset-form-icon reset-error-icon">
-            <Lock size={24} strokeWidth={1.5} />
-          </div>
-          <h2>Invalid or expired link</h2>
-          <p className="reset-error-text">
-            This password reset link is invalid or has expired.
-          </p>
-          <Link href="/forgot-password" className="reset-submit-btn">
-            Request new OTP
-            <ArrowRight size={17} strokeWidth={2.5} />
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (success) {
-    return (
-      <div className="reset-form-card">
-        <div className="reset-success-state">
-          <div className="reset-form-icon reset-success-icon">
-            <CheckCircle size={28} strokeWidth={1.5} />
-          </div>
-          <h2>Password reset successful!</h2>
-          <p className="reset-success-text">
-            Your password has been changed. You can now log in with your new password.
-          </p>
-          <Link href="/login" className="reset-submit-btn">
-            Go to login
-            <ArrowRight size={17} strokeWidth={2.5} />
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="reset-form-card">
-      <div className="reset-form-header">
-        <div className="reset-form-icon">
-          <Lock size={20} strokeWidth={1.5} />
-        </div>
-        <h2>Create new password</h2>
-        <p>Enter a new password for your account</p>
-      </div>
-
-      {error && <div className="reset-error">{error}</div>}
-
-      <form onSubmit={handleSubmit} className="reset-form">
-        <div className="reset-input-group">
-          <label htmlFor="password">New password</label>
-          <div className="reset-input-wrap">
-            <Lock size={17} strokeWidth={1.5} className="reset-input-icon" />
-            <input
-              id="password"
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
-            <button
-              type="button"
-              className="reset-password-toggle"
-              onClick={() => setShowPassword(!showPassword)}
-              tabIndex={-1}
-              disabled={loading}
-            >
-              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-            </button>
-          </div>
-          <p className="reset-hint">Must be at least 8 characters</p>
-        </div>
-
-        <div className="reset-input-group">
-          <label htmlFor="confirmPassword">Confirm password</label>
-          <div className="reset-input-wrap">
-            <Lock size={17} strokeWidth={1.5} className="reset-input-icon" />
-            <input
-              id="confirmPassword"
-              type={showPassword ? "text" : "password"}
-              placeholder="••••••••"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              disabled={loading}
-            />
-          </div>
-        </div>
-
-        <button
-          type="submit"
-          className="reset-submit-btn"
-          disabled={loading}
-        >
-          {loading ? (
-            <>Resetting password...</>
-          ) : (
-            <>
-              Reset password
-              <ArrowRight size={17} strokeWidth={2.5} />
-            </>
-          )}
-        </button>
-      </form>
-
-      <p className="reset-login-prompt">
-        Remember your password?{" "}
-        <Link href="/login" className="reset-login-link">
-          Sign in
-        </Link>
-      </p>
-    </div>
-  );
-}
-
 export default function ResetPasswordPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [sent, setSent] = useState(false);
 
-  // Redirect if already logged in (same as login page)
   useEffect(() => {
     if (!authLoading && user) {
       router.replace("/dashboard");
     }
   }, [user, authLoading, router]);
 
-  // Don't render anything while checking auth or if user is logged in
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setSuccess("");
+
+    if (!email.trim()) {
+      setError("Email address is required");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      // Try Firebase first for email/password users
+      await sendPasswordResetEmail(auth, email, {
+        url: `${window.location.origin}/login`,
+        handleCodeInApp: true,
+      });
+
+      setSent(true);
+      setSuccess(`We've sent a password reset link to ${email}. Check your inbox and follow the instructions.`);
+      
+      // Store email in session storage in case they need OTP fallback
+      sessionStorage.setItem("resetEmail", email.trim());
+      
+    } catch (firebaseError: any) {
+      console.log("Firebase reset failed, using backend OTP flow:", firebaseError.code);
+
+      // Firebase failed — user might be Google-only or not in Firebase
+      // Use backend OTP flow
+      try {
+        const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: email.trim() }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Failed to send reset OTP");
+        }
+
+        // Store email for the verify-otp page
+        sessionStorage.setItem("resetEmail", email.trim());
+        
+        setSent(true);
+        setSuccess(`We've sent a 6-digit OTP to ${email}. Please check your inbox.`);
+        
+        // Redirect to OTP verification page after a short delay
+        setTimeout(() => {
+          router.push(`/verify-otp?email=${encodeURIComponent(email.trim())}`);
+        }, 1500);
+        
+      } catch (backendError: any) {
+        setError(backendError.message || "Failed to send reset email. Please try again.");
+        setSent(false);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResend = () => {
+    setSent(false);
+    setError("");
+    setSuccess("");
+  };
+
   if (authLoading || user) {
     return null;
   }
 
   return (
-    <div className="reset-root">
-      <div className="reset-container">
-        <div className="reset-brand">
-          <Link href="/" className="reset-logo">
+    <div className="forgot-root">
+      <div className="forgot-container">
+        {/* Left - Brand */}
+        <div className="forgot-brand">
+          <Link href="/" className="forgot-logo">
             <QrCode size={22} strokeWidth={2} />
             <span>EasyMenu</span>
           </Link>
           
-          <div className="reset-brand-content">
-            <h1>Create new password</h1>
-            <p className="reset-brand-desc">
-              Your new password must be different from previously used passwords.
+          <div className="forgot-brand-content">
+            <h1>
+              Forgot your <span>password?</span>
+            </h1>
+            <p className="forgot-brand-desc">
+              No worries — it happens. We'll send you a reset link or OTP to get you back into your dashboard quickly.
             </p>
+
+            <div className="forgot-value-prop">
+              <div className="forgot-value-icon-wrap">
+                <div className="forgot-value-icon-small">
+                  <Sparkles size={14} strokeWidth={1.5} />
+                </div>
+                <span className="forgot-value-title">Secure & fast recovery</span>
+              </div>
+              <p className="forgot-value-desc">
+                Reset links and OTPs expire for your safety. If you don't see the email, check your spam folder or request a new one.
+              </p>
+            </div>
           </div>
         </div>
 
-        <div className="reset-form-wrap">
-          <Suspense fallback={
-            <div className="reset-form-card">
-              <div className="reset-validating">
-                <div className="reset-spinner"></div>
-                <p>Loading...</p>
-              </div>
-            </div>
-          }>
-            <ResetPasswordForm />
-          </Suspense>
+        {/* Right - Form */}
+        <div className="forgot-form-wrap">
+          <div className="forgot-form-card">
+            {!sent ? (
+              <>
+                <div className="forgot-form-header">
+                  <div className="forgot-form-icon">
+                    <Mail size={20} strokeWidth={1.5} />
+                  </div>
+                  <h2>Reset your password</h2>
+                  <p>Enter your email and we'll send you a reset link or OTP</p>
+                </div>
 
-          <Link href="/login" className="reset-back">
+                {error && <div className="forgot-error">{error}</div>}
+
+                <form onSubmit={handleSubmit} className="forgot-form">
+                  <div className="forgot-input-group">
+                    <label htmlFor="email">Email address</label>
+                    <div className="forgot-input-wrap">
+                      <Mail size={17} strokeWidth={1.5} className="forgot-input-icon" />
+                      <input
+                        id="email"
+                        type="email"
+                        placeholder="name@restaurant.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        disabled={loading}
+                        autoComplete="email"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="forgot-submit-btn"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      "Sending..."
+                    ) : (
+                      <>
+                        Send reset link
+                        <Send size={17} strokeWidth={2.5} />
+                      </>
+                    )}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <div className="forgot-success-state">
+                  <div className="forgot-form-icon forgot-success-icon">
+                    <CheckCircle size={28} strokeWidth={1.5} />
+                  </div>
+                  <h2>Check your email</h2>
+                  <p className="forgot-success-text">{success}</p>
+                  
+                  <div className="forgot-success-actions">
+                    <button
+                      type="button"
+                      className="forgot-submit-btn"
+                      onClick={handleResend}
+                    >
+                      Send again
+                      <Send size={17} strokeWidth={2.5} />
+                    </button>
+                    
+                    <Link href="/login" className="forgot-back-link">
+                      <ArrowLeft size={15} strokeWidth={2} />
+                      Back to sign in
+                    </Link>
+                  </div>
+
+                  <p className="forgot-spam-hint">
+                    Didn't receive it? Check your spam folder or verify the email address is correct.
+                  </p>
+                </div>
+              </>
+            )}
+
+            {!sent && (
+              <p className="forgot-login-prompt">
+                Remember your password?{" "}
+                <Link href="/login" className="forgot-login-link">
+                  Sign in
+                </Link>
+              </p>
+            )}
+          </div>
+
+          <Link href="/login" className="forgot-back">
             <ArrowLeft size={15} strokeWidth={2} />
-            Back to login
+            Back to sign in
           </Link>
         </div>
       </div>

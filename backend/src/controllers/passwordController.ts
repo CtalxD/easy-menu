@@ -8,8 +8,11 @@ import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
-// Initialize Resend with your API key
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend only if API key exists
+let resend: Resend | null = null;
+if (process.env.RESEND_API_KEY) {
+  resend = new Resend(process.env.RESEND_API_KEY);
+}
 
 // Store OTPs temporarily (in production, use Redis with TTL)
 const otpStore = new Map<string, { otp: string; email: string; expiresAt: number }>();
@@ -35,7 +38,7 @@ const otpEmailHtml = (otp: string, expiresInMinutes: number = 10): string => `
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Password reset OTP</title>
+      <title>Password Reset OTP - EasyMenu</title>
     </head>
     <body style="margin: 0; padding: 0; background-color: #FAF7F2; font-family: Arial, sans-serif;">
       <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #FAF7F2; padding: 40px 20px;">
@@ -49,7 +52,7 @@ const otpEmailHtml = (otp: string, expiresInMinutes: number = 10): string => `
               </tr>
               <tr>
                 <td style="padding: 40px 32px 32px;">
-                  <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 700; color: #1A1510;">Password reset OTP</h1>
+                  <h1 style="margin: 0 0 8px; font-size: 22px; font-weight: 700; color: #1A1510;">Password Reset OTP</h1>
                   <p style="margin: 0 0 24px; font-size: 15px; color: #6B6560; line-height: 1.6;">
                     We received a request to reset the password for your EasyMenu account. Use the OTP code below to verify your identity.
                   </p>
@@ -67,7 +70,7 @@ const otpEmailHtml = (otp: string, expiresInMinutes: number = 10): string => `
               </tr>
               <tr>
                 <td style="background-color: #FAF7F2; padding: 20px 32px; border-top: 1px solid #E8E0D5; text-align: center;">
-                  <p style="margin: 0; font-size: 12px; color: #9B9590;">© ${new Date().getFullYear()} EasyMenu. All rights reserved.</p>
+                  <p style="margin: 0; font-size: 12px; color: #9B9590;">&copy; ${new Date().getFullYear()} EasyMenu. All rights reserved.</p>
                 </td>
               </tr>
             </table>
@@ -82,94 +85,100 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
   try {
     const { email } = req.body;
 
-    console.log('Forgot password request for email:', email);
+    console.log('Forgot password request received for:', email);
+    console.log('Email service status - Resend configured:', !!resend);
 
     if (!email) {
       res.status(400).json({ message: 'Email is required' });
       return;
     }
 
-    // CHECK IF USER EXISTS FIRST
+    // Check if user exists
     const user = await prisma.user.findUnique({ where: { email } });
-
-    console.log('User found:', user ? 'Yes' : 'No');
 
     if (!user) {
       res.status(404).json({ message: 'No account found with this email address' });
       return;
     }
 
+    console.log('User found:', user.email, '| Has password:', !!user.password);
+
+    // Check if Resend is configured
+    if (!resend) {
+      console.error('Resend API key is not configured. Email cannot be sent.');
+      
+      // Generate OTP anyway for development and log it
+      const otp = generateOTP();
+      const expiresAt = Date.now() + 10 * 60 * 1000;
+      const otpKey = `${email}_${otp}`;
+      otpStore.set(otpKey, { otp, email, expiresAt });
+
+      console.log('------------------------------------------------------');
+      console.log('DEVELOPMENT MODE - OTP generated but not sent via email');
+      console.log('Email:', email);
+      console.log('OTP:', otp);
+      console.log('Expires at:', new Date(expiresAt).toISOString());
+      console.log('------------------------------------------------------');
+      
+      res.status(500).json({ 
+        message: 'Email service is not configured. Please contact support.',
+      });
+      return;
+    }
+
+    // Check if FROM email is configured
+    if (!process.env.RESEND_FROM_EMAIL) {
+      console.error('RESEND_FROM_EMAIL is not configured');
+      res.status(500).json({ 
+        message: 'Email service configuration error. Please contact support.',
+      });
+      return;
+    }
+
     // Generate OTP
     const otp = generateOTP();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
+    const expiresAt = Date.now() + 10 * 60 * 1000;
     
     // Store OTP with email
     const otpKey = `${email}_${otp}`;
     otpStore.set(otpKey, { otp, email, expiresAt });
 
-    console.log('==============================================');
-    console.log('PASSWORD RESET OTP (use this to test locally):');
-    console.log(`OTP for ${email}: ${otp}`);
-    console.log('==============================================');
+    console.log('OTP generated and stored for:', email);
 
-    // Check if Resend API key is configured
-    if (!process.env.RESEND_API_KEY) {
-      console.error('RESEND_API_KEY is not configured in environment variables');
-      // Still return success for testing, but log the OTP
-      res.json({ 
-        message: 'OTP sent successfully',
-        requiresOTP: true,
-        email: email,
-        // Include OTP in response for testing only - REMOVE IN PRODUCTION
-        testOTP: process.env.NODE_ENV === 'production' ? undefined : otp
+    // Send email via Resend
+    const { data, error } = await resend.emails.send({
+      from: process.env.RESEND_FROM_EMAIL,
+      to: [email],
+      subject: 'Password Reset OTP - EasyMenu',
+      html: otpEmailHtml(otp, 10),
+    });
+
+    if (error) {
+      console.error('Resend API error:', error.message);
+      console.error('Full error details:', JSON.stringify(error, null, 2));
+      
+      // Remove OTP from store since email failed
+      otpStore.delete(otpKey);
+      
+      res.status(500).json({ 
+        message: 'Failed to send OTP email. Please try again later.',
       });
       return;
     }
 
-    // Try to send email
-    try {
-      const { data, error } = await resend.emails.send({
-        from: `EasyMenu <${process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev'}>`,
-        to: [email],
-        subject: 'Password reset OTP - EasyMenu',
-        html: otpEmailHtml(otp, 10),
-      });
+    console.log('Password reset OTP sent successfully to:', email, '| Message ID:', data?.id);
 
-      if (error) {
-        console.error('Resend API error:', error);
-        // Still return success but log the error
-        res.json({ 
-          message: 'OTP sent successfully',
-          requiresOTP: true,
-          email: email,
-          testOTP: otp // Include OTP for testing since email failed
-        });
-        return;
-      }
-
-      console.log('OTP email sent successfully, id:', data?.id);
-    } catch (emailError) {
-      console.error('Email send exception:', emailError);
-      // Still return success for testing
-      res.json({ 
-        message: 'OTP sent successfully',
-        requiresOTP: true,
-        email: email,
-        testOTP: otp // Include OTP for testing since email failed
-      });
-      return;
-    }
-
-    // Return success
     res.json({ 
-      message: 'OTP sent successfully',
+      message: 'OTP sent successfully. Please check your email.',
       requiresOTP: true,
-      email: email 
+      email: email,
     });
 
   } catch (error) {
-    console.error('Forgot password error:', error);
-    res.status(500).json({ message: 'Internal server error', error: String(error) });
+    console.error('Forgot password unexpected error:', error);
+    res.status(500).json({ 
+      message: 'An unexpected error occurred. Please try again later.',
+    });
   }
 };
 
@@ -177,7 +186,7 @@ export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, otp } = req.body;
 
-    console.log('Verify OTP request for email:', email, 'OTP:', otp);
+    console.log('OTP verification request for:', email);
 
     if (!email || !otp) {
       res.status(400).json({ message: 'Email and OTP are required' });
@@ -197,7 +206,7 @@ export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
     }
 
     if (!validOTPKey || !storedData) {
-      console.log('Invalid or expired OTP for email:', email);
+      console.log('Invalid or expired OTP for:', email);
       res.status(400).json({ message: 'Invalid or expired OTP' });
       return;
     }
@@ -220,7 +229,7 @@ export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
     // Delete the used OTP
     otpStore.delete(validOTPKey);
 
-    console.log('OTP verified successfully for email:', email);
+    console.log('OTP verified successfully for:', email);
 
     res.json({
       message: 'OTP verified successfully',
@@ -229,8 +238,8 @@ export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
     });
 
   } catch (error) {
-    console.error('Verify OTP error:', error);
-    res.status(500).json({ message: 'Internal server error', error: String(error) });
+    console.error('OTP verification error:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
@@ -238,7 +247,7 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
   try {
     const { resetToken, newPassword } = req.body;
 
-    console.log('Reset password request for token:', resetToken?.substring(0, 10) + '...');
+    console.log('Password reset request received');
 
     if (!resetToken || !newPassword) {
       res.status(400).json({ message: 'Reset token and new password are required' });
@@ -251,7 +260,11 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
     }
 
     const resetTokenRecord = await prisma.passwordResetToken.findFirst({
-      where: { token: resetToken, used: false, expiresAt: { gt: new Date() } },
+      where: { 
+        token: resetToken, 
+        used: false, 
+        expiresAt: { gt: new Date() } 
+      },
     });
 
     if (!resetTokenRecord) {
@@ -260,7 +273,9 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
-    const user = await prisma.user.findUnique({ where: { email: resetTokenRecord.email } });
+    const user = await prisma.user.findUnique({ 
+      where: { email: resetTokenRecord.email } 
+    });
 
     if (!user) {
       console.log('User not found for email:', resetTokenRecord.email);
@@ -276,17 +291,22 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       data: { password: hashedPassword },
     });
 
-    await prisma.passwordResetToken.update({
-      where: { id: resetTokenRecord.id },
+    // Mark all reset tokens for this email as used
+    await prisma.passwordResetToken.updateMany({
+      where: { 
+        email: resetTokenRecord.email, 
+        used: false 
+      },
       data: { used: true },
     });
 
-    console.log('Password reset successfully for user:', user.email);
+    console.log('Password updated successfully for:', user.email);
 
     res.json({ message: 'Password reset successfully' });
+
   } catch (error) {
-    console.error('Reset password error:', error);
-    res.status(500).json({ message: 'Internal server error', error: String(error) });
+    console.error('Password reset error:', error);
+    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
@@ -300,7 +320,11 @@ export const validateResetToken = async (req: Request, res: Response): Promise<v
     }
 
     const resetToken = await prisma.passwordResetToken.findFirst({
-      where: { token: token as string, used: false, expiresAt: { gt: new Date() } },
+      where: { 
+        token: token as string, 
+        used: false, 
+        expiresAt: { gt: new Date() } 
+      },
     });
 
     if (!resetToken) {
@@ -309,8 +333,9 @@ export const validateResetToken = async (req: Request, res: Response): Promise<v
     }
 
     res.json({ valid: true, email: resetToken.email });
+
   } catch (error) {
-    console.error('Validate token error:', error);
+    console.error('Token validation error:', error);
     res.status(500).json({ valid: false, message: 'Internal server error' });
   }
 };
