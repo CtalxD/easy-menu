@@ -8,11 +8,8 @@ import crypto from 'crypto';
 
 const prisma = new PrismaClient();
 
-// Initialize Resend only if API key exists
-let resend: Resend | null = null;
-if (process.env.RESEND_API_KEY) {
-  resend = new Resend(process.env.RESEND_API_KEY);
-}
+// Initialize Resend with your API key
+const resend = new Resend(process.env.RESEND_API_KEY || 're_jVfF6CLp_BP7deGtDuEJZgyJ4JGhX1WGC');
 
 // Store OTPs temporarily (in production, use Redis with TTL)
 const otpStore = new Map<string, { otp: string; email: string; expiresAt: number }>();
@@ -85,8 +82,8 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
   try {
     const { email } = req.body;
 
+    console.log('==========================================');
     console.log('Forgot password request received for:', email);
-    console.log('Email service status - Resend configured:', !!resend);
 
     if (!email) {
       res.status(400).json({ message: 'Email is required' });
@@ -97,82 +94,91 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
-      res.status(404).json({ message: 'No account found with this email address' });
-      return;
-    }
-
-    console.log('User found:', user.email, '| Has password:', !!user.password);
-
-    // Check if Resend is configured
-    if (!resend) {
-      console.error('Resend API key is not configured. Email cannot be sent.');
-      
-      // Generate OTP anyway for development and log it
-      const otp = generateOTP();
-      const expiresAt = Date.now() + 10 * 60 * 1000;
-      const otpKey = `${email}_${otp}`;
-      otpStore.set(otpKey, { otp, email, expiresAt });
-
-      console.log('------------------------------------------------------');
-      console.log('DEVELOPMENT MODE - OTP generated but not sent via email');
-      console.log('Email:', email);
-      console.log('OTP:', otp);
-      console.log('Expires at:', new Date(expiresAt).toISOString());
-      console.log('------------------------------------------------------');
-      
-      res.status(500).json({ 
-        message: 'Email service is not configured. Please contact support.',
+      console.log('No user found with email:', email);
+      console.log('==========================================');
+      res.status(200).json({ 
+        message: 'If an account exists with this email, a reset OTP has been sent.',
+        requiresOTP: true,
+        email: email,
       });
       return;
     }
 
-    // Check if FROM email is configured
-    if (!process.env.RESEND_FROM_EMAIL) {
-      console.error('RESEND_FROM_EMAIL is not configured');
-      res.status(500).json({ 
-        message: 'Email service configuration error. Please contact support.',
-      });
-      return;
-    }
+    const isGoogleOnly = !user.password;
+    console.log('User found:', user.email);
+    console.log('Has password:', !!user.password);
+    console.log('Google-only account:', isGoogleOnly);
 
     // Generate OTP
     const otp = generateOTP();
     const expiresAt = Date.now() + 10 * 60 * 1000;
-    
-    // Store OTP with email
     const otpKey = `${email}_${otp}`;
     otpStore.set(otpKey, { otp, email, expiresAt });
 
-    console.log('OTP generated and stored for:', email);
+    console.log('OTP generated:', otp);
+    console.log('Expires at:', new Date(expiresAt).toISOString());
 
     // Send email via Resend
-    const { data, error } = await resend.emails.send({
-      from: process.env.RESEND_FROM_EMAIL,
-      to: [email],
-      subject: 'Password Reset OTP - EasyMenu',
-      html: otpEmailHtml(otp, 10),
-    });
+    console.log('Sending email via Resend...');
+    
+    try {
+      const { data, error } = await resend.emails.send({
+        from: 'EasyMenu <onboarding@resend.dev>',
+        to: [email],
+        subject: 'Password Reset OTP - EasyMenu',
+        html: otpEmailHtml(otp, 10),
+      });
 
-    if (error) {
-      console.error('Resend API error:', error.message);
-      console.error('Full error details:', JSON.stringify(error, null, 2));
+      if (error) {
+        console.error('Resend API error:', error.message);
+        console.error('Full error:', JSON.stringify(error, null, 2));
+        
+        // If it's the testing restriction, log OTP for development
+        if (error.message.includes('testing emails')) {
+          console.log('----------------------------------------');
+          console.log('TESTING MODE - OTP (cannot send to other emails)');
+          console.log('Email:', email);
+          console.log('OTP:', otp);
+          console.log('----------------------------------------');
+          console.log('To send to any email, verify a domain at:');
+          console.log('https://resend.com/domains');
+          console.log('==========================================');
+          
+          res.status(200).json({ 
+            message: 'If an account exists, a reset OTP has been sent.',
+            requiresOTP: true,
+            email: email,
+            devOtp: otp, // Include OTP so you can test in development
+          });
+          return;
+        }
+        
+        throw error;
+      }
+
+      console.log('Email sent successfully!');
+      console.log('Message ID:', data?.id);
+      console.log('==========================================');
+
+      res.json({ 
+        message: 'OTP sent successfully! Please check your email.',
+        requiresOTP: true,
+        email: email,
+      });
+
+    } catch (emailError: any) {
+      console.error('Failed to send email:', emailError.message);
+      console.log('OTP for development:', otp);
+      console.log('==========================================');
       
       // Remove OTP from store since email failed
       otpStore.delete(otpKey);
       
       res.status(500).json({ 
         message: 'Failed to send OTP email. Please try again later.',
+        devOtp: process.env.NODE_ENV === 'development' ? otp : undefined,
       });
-      return;
     }
-
-    console.log('Password reset OTP sent successfully to:', email, '| Message ID:', data?.id);
-
-    res.json({ 
-      message: 'OTP sent successfully. Please check your email.',
-      requiresOTP: true,
-      email: email,
-    });
 
   } catch (error) {
     console.error('Forgot password unexpected error:', error);
@@ -283,6 +289,10 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       return;
     }
 
+    const wasGoogleOnly = !user.password;
+    console.log('Resetting password for:', user.email);
+    console.log('Was Google-only account:', wasGoogleOnly);
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(newPassword, salt);
 
@@ -291,7 +301,6 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
       data: { password: hashedPassword },
     });
 
-    // Mark all reset tokens for this email as used
     await prisma.passwordResetToken.updateMany({
       where: { 
         email: resetTokenRecord.email, 
@@ -302,7 +311,10 @@ export const resetPassword = async (req: Request, res: Response): Promise<void> 
 
     console.log('Password updated successfully for:', user.email);
 
-    res.json({ message: 'Password reset successfully' });
+    res.json({ 
+      message: 'Password reset successfully! You can now sign in with your new password.',
+      wasGoogleOnly: wasGoogleOnly,
+    });
 
   } catch (error) {
     console.error('Password reset error:', error);

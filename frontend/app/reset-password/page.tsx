@@ -1,4 +1,4 @@
-// frontend/app/forgot-password/page.tsx
+// frontend/app/reset-password/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -46,48 +46,53 @@ export default function ResetPasswordPage() {
     setLoading(true);
 
     try {
-      // Try Firebase first for email/password users
-      await sendPasswordResetEmail(auth, email, {
-        url: `${window.location.origin}/login`,
-        handleCodeInApp: true,
+      // Always try backend OTP flow first (works for all account types including Google-only)
+      const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
       });
 
-      setSent(true);
-      setSuccess(`We've sent a password reset link to ${email}. Check your inbox and follow the instructions.`);
-      
-      // Store email in session storage in case they need OTP fallback
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to send reset OTP");
+      }
+
+      // Store email for the verify-otp page
       sessionStorage.setItem("resetEmail", email.trim());
       
-    } catch (firebaseError: any) {
-      console.log("Firebase reset failed, using backend OTP flow:", firebaseError.code);
-
-      // Firebase failed — user might be Google-only or not in Firebase
-      // Use backend OTP flow
+      setSent(true);
+      setSuccess(`We've sent a 6-digit OTP to ${email}. Please check your inbox.`);
+      
+      // In development, log OTP from response if available
+      if (data.devOtp && process.env.NODE_ENV === 'development') {
+        console.log('DEV OTP:', data.devOtp);
+      }
+      
+      // Redirect to OTP verification page after a short delay
+      setTimeout(() => {
+        router.push(`/verify-otp?email=${encodeURIComponent(email.trim())}`);
+      }, 1500);
+      
+    } catch (backendError: any) {
+      console.log("Backend OTP failed, trying Firebase fallback:", backendError.message);
+      
+      // If backend fails, try Firebase as fallback for email/password users
       try {
-        const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.trim() }),
+        await sendPasswordResetEmail(auth, email, {
+          url: `${window.location.origin}/login`,
+          handleCodeInApp: true,
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || "Failed to send reset OTP");
-        }
-
-        // Store email for the verify-otp page
+        setSent(true);
+        setSuccess(`We've sent a password reset link to ${email}. Check your inbox and follow the instructions.`);
+        
+        // Store email in session storage in case they need OTP fallback
         sessionStorage.setItem("resetEmail", email.trim());
         
-        setSent(true);
-        setSuccess(`We've sent a 6-digit OTP to ${email}. Please check your inbox.`);
-        
-        // Redirect to OTP verification page after a short delay
-        setTimeout(() => {
-          router.push(`/verify-otp?email=${encodeURIComponent(email.trim())}`);
-        }, 1500);
-        
-      } catch (backendError: any) {
+      } catch (firebaseError: any) {
+        console.error("Firebase reset also failed:", firebaseError.code);
         setError(backendError.message || "Failed to send reset email. Please try again.");
         setSent(false);
       }
