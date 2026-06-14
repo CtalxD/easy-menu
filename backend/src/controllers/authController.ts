@@ -1,8 +1,50 @@
-// backend/src/controllers/authController.ts
+//backend/src/controllers/authController.ts
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
+// Get JWT secrets with development fallbacks
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+
+// Warn in development if secrets are not set
+if (!JWT_ACCESS_SECRET && process.env.NODE_ENV !== 'production') {
+  console.warn('Warning: JWT_ACCESS_SECRET not set. Using fallback for development only.');
+}
+
+if (!JWT_REFRESH_SECRET && process.env.NODE_ENV !== 'production') {
+  console.warn('Warning: JWT_REFRESH_SECRET not set. Using fallback for development only.');
+}
+
+// Only exit in production if secrets are missing
+if (process.env.NODE_ENV === 'production') {
+  if (!JWT_ACCESS_SECRET || JWT_ACCESS_SECRET === 'your-access-secret') {
+    console.error('FATAL: JWT_ACCESS_SECRET is not properly configured in production');
+    process.exit(1);
+  }
+
+  if (!JWT_REFRESH_SECRET || JWT_REFRESH_SECRET === 'your-refresh-secret') {
+    console.error('FATAL: JWT_REFRESH_SECRET is not properly configured in production');
+    process.exit(1);
+  }
+}
+
+// Use fallbacks only for development
+const getAccessSecret = () => {
+  if (JWT_ACCESS_SECRET) return JWT_ACCESS_SECRET;
+  if (process.env.NODE_ENV !== 'production') return 'access-secret-key-change-in-production';
+  throw new Error('JWT_ACCESS_SECRET is required in production');
+};
+
+const getRefreshSecret = () => {
+  if (JWT_REFRESH_SECRET) return JWT_REFRESH_SECRET;
+  if (process.env.NODE_ENV !== 'production') return 'refresh-secret-key-change-in-production';
+  throw new Error('JWT_REFRESH_SECRET is required in production');
+};
 
 // In production, use Redis for token blacklist with TTL
 const tokenBlacklist = new Map<string, number>();
@@ -20,7 +62,7 @@ setInterval(() => {
 const generateAccessToken = (userId: string, rememberMe: boolean = false): string => {
   return jwt.sign(
     { userId, type: 'access' },
-    process.env.JWT_ACCESS_SECRET || 'access-secret-key-change-in-production',
+    getAccessSecret(),
     { expiresIn: rememberMe ? '30d' : '24h' }
   );
 };
@@ -28,7 +70,7 @@ const generateAccessToken = (userId: string, rememberMe: boolean = false): strin
 const generateRefreshToken = (userId: string, rememberMe: boolean = false): string => {
   return jwt.sign(
     { userId, type: 'refresh' },
-    process.env.JWT_REFRESH_SECRET || 'refresh-secret-key-change-in-production',
+    getRefreshSecret(),
     { expiresIn: rememberMe ? '30d' : '24h' }
   );
 };
@@ -353,10 +395,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
 
     let decoded: { userId: string; type: string; exp?: number };
     try {
-      decoded = jwt.verify(
-        token,
-        process.env.JWT_REFRESH_SECRET || 'refresh-secret-key-change-in-production'
-      ) as { userId: string; type: string; exp?: number };
+      decoded = jwt.verify(token, getRefreshSecret()) as { userId: string; type: string; exp?: number };
     } catch (error) {
       res.status(401).json({ message: 'Invalid or expired refresh token' });
       return;
@@ -466,10 +505,7 @@ export const verifyToken = async (req: Request, res: Response): Promise<void> =>
 
     let decoded: { userId: string; type: string };
     try {
-      decoded = jwt.verify(
-        token,
-        process.env.JWT_ACCESS_SECRET || 'access-secret-key-change-in-production'
-      ) as { userId: string; type: string };
+      decoded = jwt.verify(token, getAccessSecret()) as { userId: string; type: string };
     } catch (error) {
       res.status(401).json({ message: 'Invalid or expired access token' });
       return;

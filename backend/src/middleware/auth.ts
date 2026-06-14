@@ -1,6 +1,18 @@
-// backend/src/middleware/auth.ts
+//backend/src/middleware/auth.ts
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
+const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
+
+// Only validate in production or when explicitly set
+// This allows the server to start with fallbacks in development
+if (!JWT_ACCESS_SECRET && process.env.NODE_ENV === 'production') {
+  throw new Error('JWT_ACCESS_SECRET is not defined in environment variables');
+}
 
 export const authenticateToken = (req: Request, res: Response, next: NextFunction): void => {
   const authHeader = req.headers.authorization;
@@ -12,10 +24,14 @@ export const authenticateToken = (req: Request, res: Response, next: NextFunctio
   }
 
   try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_ACCESS_SECRET || 'access-secret-key-change-in-production'
-    ) as { userId: string; type: string };
+    // Use a default for development if not set, but warn
+    const secret = JWT_ACCESS_SECRET || 'access-secret-key-change-in-production';
+    
+    if (!JWT_ACCESS_SECRET && process.env.NODE_ENV !== 'production') {
+      console.warn('⚠️  Warning: JWT_ACCESS_SECRET not set. Using fallback for development only.');
+    }
+    
+    const decoded = jwt.verify(token, secret) as { userId: string; type: string };
 
     if (decoded.type !== 'access') {
       res.status(401).json({ message: 'Invalid token type' });
