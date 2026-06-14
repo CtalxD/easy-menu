@@ -1,4 +1,4 @@
-//backend/src/controllers/authController.ts
+// backend/src/controllers/authController.ts
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
@@ -100,32 +100,8 @@ const formatUserResponse = (user: any) => ({
 
 export const signup = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Data is already validated by Zod middleware
     const { name, email, password, restaurant } = req.body;
-
-    // Validation
-    if (!name || !email || !password || !restaurant) {
-      res.status(400).json({ 
-        message: 'All fields are required',
-        details: {
-          name: !name ? 'Name is required' : null,
-          email: !email ? 'Email is required' : null,
-          password: !password ? 'Password is required' : null,
-          restaurant: !restaurant ? 'Restaurant name is required' : null,
-        }
-      });
-      return;
-    }
-
-    if (password.length < 8) {
-      res.status(400).json({ message: 'Password must be at least 8 characters' });
-      return;
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      res.status(400).json({ message: 'Invalid email format' });
-      return;
-    }
 
     // Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -183,12 +159,8 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Data is already validated by Zod middleware
     const { email, password, rememberMe } = req.body;
-
-    if (!email || !password) {
-      res.status(400).json({ message: 'Email and password are required' });
-      return;
-    }
 
     const user = await prisma.user.findUnique({
       where: { email },
@@ -236,6 +208,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
 export const googleSignIn = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Data is already validated by Zod middleware
     const { name, email, restaurant, rememberMe, isSignUp } = req.body;
 
     console.log('Google Sign-In Request:', {
@@ -243,13 +216,6 @@ export const googleSignIn = async (req: Request, res: Response): Promise<void> =
       name,
       isSignUp,
     });
-
-    // Validate required fields
-    if (!email) {
-      console.error('Missing email');
-      res.status(400).json({ message: 'Email is required' });
-      return;
-    }
 
     // Check if user exists by email
     let user = await prisma.user.findUnique({
@@ -338,12 +304,8 @@ export const googleSignIn = async (req: Request, res: Response): Promise<void> =
 export const linkGoogleAccount = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { email } = req.body;
-
-    if (!email) {
-      res.status(400).json({ message: 'Email is required' });
-      return;
-    }
 
     // Check if the Google email is already linked to another account
     const existingUser = await prisma.user.findUnique({
@@ -566,17 +528,8 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
 export const changePassword = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      res.status(400).json({ message: 'Current password and new password are required' });
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      res.status(400).json({ message: 'New password must be at least 8 characters' });
-      return;
-    }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -620,6 +573,7 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
 export const updateProfile = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { name, email } = req.body;
 
     const user = await prisma.user.findUnique({
@@ -643,12 +597,13 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
       }
     }
 
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-        ...(name && { name }),
-        ...(email && { email }),
-      },
+      data: updateData,
       include: {
         restaurants: true
       }

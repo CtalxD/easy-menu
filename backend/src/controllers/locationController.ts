@@ -1,4 +1,4 @@
-//backend/src/controllers/locationController.ts
+// backend/src/controllers/locationController.ts
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 
@@ -34,12 +34,8 @@ export const getLocations = async (req: Request, res: Response): Promise<void> =
 export const createLocation = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { name, address, phone } = req.body;
-
-    if (!name || !name.trim()) {
-      res.status(400).json({ message: 'Location name is required' });
-      return;
-    }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -70,8 +66,8 @@ export const createLocation = async (req: Request, res: Response): Promise<void>
     const location = await prisma.location.create({
       data: {
         name: name.trim(),
-        address: address || '',
-        phone: phone || '',
+        address,
+        phone,
         restaurantId: restaurant.id,
       },
     });
@@ -87,6 +83,7 @@ export const updateLocation = async (req: Request, res: Response): Promise<void>
   try {
     const userId = (req as any).userId;
     const locationId = req.params.locationId as string;
+    // Data is already validated by Zod middleware
     const { name, address, phone } = req.body;
 
     const user = await prisma.user.findUnique({
@@ -108,13 +105,14 @@ export const updateLocation = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    const updateData: any = {};
+    if (name) updateData.name = name.trim();
+    if (address !== undefined) updateData.address = address;
+    if (phone !== undefined) updateData.phone = phone;
+
     const location = await prisma.location.update({
       where: { id: locationId },
-      data: {
-        ...(name && { name: name.trim() }),
-        ...(address !== undefined && { address }),
-        ...(phone !== undefined && { phone }),
-      },
+      data: updateData,
     });
 
     res.json(location);

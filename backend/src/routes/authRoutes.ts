@@ -1,5 +1,4 @@
 // backend/src/routes/authRoutes.ts
-
 import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import {
@@ -8,6 +7,18 @@ import {
   verifyOtpLimiter,
   resetPasswordLimiter,
 } from '../middleware/rateLimiter';
+import { validate } from '../middleware/validate';
+import {
+  signupSchema,
+  loginSchema,
+  googleSignInSchema,
+  linkGoogleSchema,
+  changePasswordSchema,
+  updateProfileSchema,
+  forgotPasswordSchema,
+  verifyOtpSchema,
+  resetPasswordSchema,
+} from '../validators/authValidators';
 import { 
   signup, 
   login, 
@@ -31,9 +42,9 @@ const router = Router();
 
 // ==================== AUTH ROUTES ====================
 
-router.post('/signup', signup);
-router.post('/login', loginLimiter, login);
-router.post('/google-signin', googleSignIn);
+router.post('/signup', validate(signupSchema), signup);
+router.post('/login', loginLimiter, validate(loginSchema), login);
+router.post('/google-signin', validate(googleSignInSchema), googleSignIn);
 router.post('/logout', logout);
 router.post('/refresh-token', refreshToken);
 router.get('/verify', verifyToken);
@@ -41,15 +52,15 @@ router.get('/verify', verifyToken);
 // ==================== PROTECTED ROUTES ====================
 
 router.get('/me', authenticateToken, getCurrentUser);
-router.put('/profile', authenticateToken, updateProfile);
-router.post('/change-password', authenticateToken, changePassword);
-router.post('/link-google', authenticateToken, linkGoogleAccount);
+router.put('/profile', authenticateToken, validate(updateProfileSchema), updateProfile);
+router.post('/change-password', authenticateToken, validate(changePasswordSchema), changePassword);
+router.post('/link-google', authenticateToken, validate(linkGoogleSchema), linkGoogleAccount);
 
 // ==================== PASSWORD RESET ROUTES ====================
 
-router.post('/forgot-password', forgotPasswordLimiter, forgotPassword);
-router.post('/verify-otp', verifyOtpLimiter, verifyOTP);
-router.post('/reset-password', resetPasswordLimiter, resetPassword);
+router.post('/forgot-password', forgotPasswordLimiter, validate(forgotPasswordSchema), forgotPassword);
+router.post('/verify-otp', verifyOtpLimiter, validate(verifyOtpSchema), verifyOTP);
+router.post('/reset-password', resetPasswordLimiter, validate(resetPasswordSchema), resetPassword);
 router.get('/validate-token', validateResetToken);
 
 export default router;

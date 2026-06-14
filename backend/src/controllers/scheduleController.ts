@@ -43,12 +43,8 @@ export const getSchedules = async (req: Request, res: Response): Promise<void> =
 export const createSchedule = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { name, description, scheduledAt, action, payload } = req.body;
-
-    if (!name || !scheduledAt || !action || !payload) {
-      res.status(400).json({ message: 'Name, scheduledAt, action, and payload are required' });
-      return;
-    }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -71,12 +67,6 @@ export const createSchedule = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    // Validate scheduledAt is in the future
-    if (new Date(scheduledAt) <= new Date()) {
-      res.status(400).json({ message: 'Scheduled time must be in the future' });
-      return;
-    }
-
     // Validate action type
     const validActions = ['TOGGLE_ITEM_STATUS', 'UPDATE_ITEM_PRICE', 'TOGGLE_ITEM_POPULAR', 'BULK_UPDATE'];
     if (!validActions.includes(action)) {
@@ -87,10 +77,10 @@ export const createSchedule = async (req: Request, res: Response): Promise<void>
     const schedule = await prisma.menuSchedule.create({
       data: {
         name,
-        description: description || '',
+        description,
         scheduledAt: new Date(scheduledAt),
         action,
-        payload: JSON.stringify(payload),
+        payload: typeof payload === 'string' ? payload : JSON.stringify(payload),
         restaurantId: restaurant.id,
       },
     });

@@ -1,4 +1,4 @@
-//backend/src/controllers/passwordController.ts
+// backend/src/controllers/passwordController.ts
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { Resend } from 'resend';
@@ -77,15 +77,11 @@ const otpEmailHtml = (otp: string, expiresInMinutes: number = 10): string => `
 
 export const forgotPassword = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Data is already validated by Zod middleware
     const { email } = req.body;
 
     console.log('==========================================');
     console.log('Forgot password request received for:', email);
-
-    if (!email) {
-      res.status(400).json({ message: 'Email is required' });
-      return;
-    }
 
     // Check if user exists
     const user = await prisma.user.findUnique({ where: { email } });
@@ -187,14 +183,10 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
 
 export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Data is already validated by Zod middleware
     const { email, otp } = req.body;
 
     console.log('OTP verification request for:', email);
-
-    if (!email || !otp) {
-      res.status(400).json({ message: 'Email and OTP are required' });
-      return;
-    }
 
     // Find valid OTP
     let validOTPKey: string | null = null;
@@ -248,19 +240,10 @@ export const verifyOTP = async (req: Request, res: Response): Promise<void> => {
 
 export const resetPassword = async (req: Request, res: Response): Promise<void> => {
   try {
+    // Data is already validated by Zod middleware
     const { resetToken, newPassword } = req.body;
 
     console.log('Password reset request received');
-
-    if (!resetToken || !newPassword) {
-      res.status(400).json({ message: 'Reset token and new password are required' });
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      res.status(400).json({ message: 'Password must be at least 8 characters' });
-      return;
-    }
 
     const resetTokenRecord = await prisma.passwordResetToken.findFirst({
       where: { 

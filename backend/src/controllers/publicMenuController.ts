@@ -36,11 +36,20 @@ function getDeviceType(userAgent: string): DeviceType {
 
 export const getPublicMenu = async (req: Request, res: Response): Promise<void> => {
   try {
+    // restaurantId from URL params (validated by route parameter)
     const restaurantId = req.params.restaurantId as string;
-    const locationId = req.query.location as string || null;
+    // location from query params (validated by Zod middleware)
+    const locationId = (req.query.location as string) || null;
 
     if (!restaurantId) {
       res.status(400).json({ message: 'Restaurant ID is required' });
+      return;
+    }
+
+    // Validate restaurantId is a valid UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(restaurantId)) {
+      res.status(400).json({ message: 'Invalid restaurant ID format' });
       return;
     }
 

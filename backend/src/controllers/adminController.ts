@@ -26,18 +26,19 @@ export const isAdmin = async (req: Request, res: Response, next: Function): Prom
 // Get all subscriptions with optional filters
 export const getSubscriptions = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { status, plan, search, page = '1', limit = '20' } = req.query;
+    // Data is already validated by Zod middleware
+    const { status, plan, search, page, limit } = req.query;
     
     const whereClause: any = {};
     
     // Filter by payment status
     if (status && status !== 'ALL') {
-      whereClause.paymentStatus = status as string;
+      whereClause.paymentStatus = status;
     }
     
     // Filter by plan
     if (plan && plan !== 'ALL') {
-      whereClause.plan = plan as string;
+      whereClause.plan = plan;
     }
     
     // Search by owner name or email
@@ -218,6 +219,7 @@ export const approveSubscription = async (req: Request, res: Response): Promise<
 export const rejectSubscription = async (req: Request, res: Response): Promise<void> => {
   try {
     const subscriptionId = req.params.subscriptionId as string;
+    // Data is already validated by Zod middleware
     const { reason } = req.body;
 
     const subscription = await prisma.subscription.findUnique({
@@ -295,9 +297,10 @@ export const getSubscriptionStatus = async (req: Request, res: Response): Promis
 // Get all users with restaurant details
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const searchQuery = req.query.search as string || '';
-    const planFilter = req.query.plan as string || '';
-    const statusFilter = req.query.status as string || '';
+    // Data is already validated by Zod middleware
+    const searchQuery = (req.query.search as string) || '';
+    const planFilter = (req.query.plan as string) || '';
+    const statusFilter = (req.query.status as string) || '';
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 50;
     const skip = (page - 1) * limit;
@@ -392,6 +395,7 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
 export const updateUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.params.userId as string;
+    // Data is already validated by Zod middleware
     const { name, email, admin, verified } = req.body;
 
     const existingUser = await prisma.user.findUnique({
@@ -415,14 +419,15 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       }
     }
 
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (admin !== undefined) updateData.admin = admin;
+    if (verified !== undefined) updateData.verified = verified;
+
     const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-        ...(name && { name }),
-        ...(email && { email }),
-        ...(admin !== undefined && { admin }),
-        ...(verified !== undefined && { verified }),
-      },
+      data: updateData,
       select: {
         id: true,
         name: true,
@@ -462,6 +467,7 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
 export const updateRestaurant = async (req: Request, res: Response): Promise<void> => {
   try {
     const restaurantId = req.params.restaurantId as string;
+    // Data is already validated by Zod middleware
     const { name, phone, plan, address, description } = req.body;
 
     const existingRestaurant = await prisma.restaurant.findUnique({
@@ -473,15 +479,16 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    const updateData: any = {};
+    if (name) updateData.name = name;
+    if (phone !== undefined) updateData.phone = phone;
+    if (plan) updateData.plan = plan as any;
+    if (address !== undefined) updateData.address = address;
+    if (description !== undefined) updateData.description = description;
+
     const updatedRestaurant = await prisma.restaurant.update({
       where: { id: restaurantId },
-      data: {
-        ...(name && { name }),
-        ...(phone !== undefined && { phone }),
-        ...(plan && { plan: plan as any }),
-        ...(address !== undefined && { address }),
-        ...(description !== undefined && { description }),
-      },
+      data: updateData,
       select: {
         id: true,
         name: true,

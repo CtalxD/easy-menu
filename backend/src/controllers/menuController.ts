@@ -1,4 +1,4 @@
-//backend/src/controllers/menuController.ts
+// backend/src/controllers/menuController.ts
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { Plan, PaymentStatus, BillingCycle } from '@prisma/client';
@@ -255,15 +255,8 @@ export const getPlanInfo = async (req: Request, res: Response): Promise<void> =>
 export const upgradePlan = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { plan, billingCycle } = req.body;
-
-    const validPlans = ['STARTER', 'PRO', 'ENTERPRISE'];
-    if (!plan || !validPlans.includes(plan)) {
-      res.status(400).json({ 
-        message: 'Invalid plan. Must be one of: ' + validPlans.join(', ') 
-      });
-      return;
-    }
 
     const cycle = billingCycle === 'yearly' ? 'YEARLY' : 'MONTHLY';
     const price = PLAN_PRICES[plan]?.[billingCycle === 'yearly' ? 'yearly' : 'monthly'] || 0;
@@ -411,12 +404,8 @@ export const upgradePlan = async (req: Request, res: Response): Promise<void> =>
 export const createCategoriesBulk = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { categories: categoryNames } = req.body;
-
-    if (!categoryNames || !Array.isArray(categoryNames) || categoryNames.length === 0) {
-      res.status(400).json({ message: 'Categories array is required' });
-      return;
-    }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -539,12 +528,8 @@ export const getMenuItem = async (req: Request, res: Response): Promise<void> =>
 export const createMenuItem = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { name, description, price, categoryId, status, popular, locationId } = req.body;
-
-    if (!name || price === undefined) {
-      res.status(400).json({ message: 'Name and price are required' });
-      return;
-    }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -559,11 +544,11 @@ export const createMenuItem = async (req: Request, res: Response): Promise<void>
     const menuItem = await prisma.menuItem.create({
       data: {
         name,
-        description: description || '',
-        price: parseFloat(price),
+        description,
+        price: typeof price === 'string' ? parseFloat(price) : price,
         categoryId: categoryId || null,
-        status: status || 'available',
-        popular: popular === true || popular === 'true',
+        status,
+        popular,
         restaurantId: user.restaurants[0].id,
         locationId: locationId || null,
       },
@@ -581,6 +566,7 @@ export const updateMenuItem = async (req: Request, res: Response): Promise<void>
   try {
     const id = req.params.id as string;
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { name, description, price, categoryId, status, popular, locationId } = req.body;
 
     const user = await prisma.user.findUnique({
@@ -602,17 +588,18 @@ export const updateMenuItem = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (price !== undefined) updateData.price = typeof price === 'string' ? parseFloat(price) : price;
+    if (categoryId !== undefined) updateData.categoryId = categoryId || null;
+    if (status !== undefined) updateData.status = status;
+    if (popular !== undefined) updateData.popular = popular;
+    if (locationId !== undefined) updateData.locationId = locationId || null;
+
     const menuItem = await prisma.menuItem.update({
       where: { id },
-      data: {
-        ...(name && { name }),
-        ...(description !== undefined && { description }),
-        ...(price !== undefined && { price: parseFloat(price) }),
-        ...(categoryId !== undefined && { categoryId: categoryId || null }),
-        ...(status && { status }),
-        ...(popular !== undefined && { popular: popular === true || popular === 'true' }),
-        ...(locationId !== undefined && { locationId: locationId || null }),
-      },
+      data: updateData,
       include: { category: true },
     });
 
@@ -813,6 +800,7 @@ export const generateQRCode = async (req: Request, res: Response): Promise<void>
 export const generateCustomQRCode = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { fgColor, bgColor, logoSize, includeLogo } = req.body;
 
     const user = await prisma.user.findUnique({
@@ -917,12 +905,8 @@ export const getCategories = async (req: Request, res: Response): Promise<void> 
 export const createCategory = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { name, description, locationId } = req.body;
-
-    if (!name || !name.trim()) {
-      res.status(400).json({ message: 'Category name is required' });
-      return;
-    }
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -947,7 +931,7 @@ export const createCategory = async (req: Request, res: Response): Promise<void>
     const category = await prisma.category.create({
       data: {
         name: name.trim(),
-        description: description || '',
+        description,
         restaurantId,
         locationId: locationId || null,
       },
@@ -964,6 +948,7 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
   try {
     const id = req.params.categoryId as string;
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { name, description, locationId } = req.body;
 
     const user = await prisma.user.findUnique({
@@ -985,13 +970,14 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    const updateData: any = {};
+    if (name) updateData.name = name.trim();
+    if (description !== undefined) updateData.description = description;
+    if (locationId !== undefined) updateData.locationId = locationId || null;
+
     const category = await prisma.category.update({
       where: { id },
-      data: {
-        ...(name && { name: name.trim() }),
-        ...(description !== undefined && { description }),
-        ...(locationId !== undefined && { locationId: locationId || null }),
-      },
+      data: updateData,
     });
 
     res.json(category);
@@ -1041,6 +1027,7 @@ export const deleteCategory = async (req: Request, res: Response): Promise<void>
 export const updateSettings = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { name, description, phone, address } = req.body;
 
     const user = await prisma.user.findUnique({
@@ -1053,14 +1040,15 @@ export const updateSettings = async (req: Request, res: Response): Promise<void>
       return;
     }
 
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name.trim();
+    if (description !== undefined) updateData.description = description.trim();
+    if (phone !== undefined) updateData.phone = phone.trim();
+    if (address !== undefined) updateData.address = address.trim();
+
     const restaurant = await prisma.restaurant.update({
       where: { id: user.restaurants[0].id },
-      data: {
-        ...(name !== undefined && { name: name.trim() }),
-        ...(description !== undefined && { description: description.trim() }),
-        ...(phone !== undefined && { phone: phone.trim() }),
-        ...(address !== undefined && { address: address.trim() }),
-      },
+      data: updateData,
     });
 
     res.json({
@@ -1084,6 +1072,7 @@ export const updateSettings = async (req: Request, res: Response): Promise<void>
 export const saveQRSettings = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = (req as any).userId;
+    // Data is already validated by Zod middleware
     const { qrCodeData, qrMenuUrl, customized, fgColor, bgColor, includeLogo, logoSize, frameStyle, framePrimaryColor, frameSecondaryColor, frameBackgroundColor, framedQRData } = req.body;
 
     const user = await prisma.user.findUnique({

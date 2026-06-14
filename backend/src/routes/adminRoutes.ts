@@ -1,6 +1,14 @@
-//backend/src/routes/adminRoutes.ts
+// backend/src/routes/adminRoutes.ts
 import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth';
+import { validate } from '../middleware/validate';
+import {
+  getSubscriptionsSchema,
+  rejectSubscriptionSchema,
+  updateUserSchema,
+  updateRestaurantSchema,
+  getAllUsersSchema,
+} from '../validators/adminValidators';
 import { 
   isAdmin, 
   getSubscriptions,
@@ -25,16 +33,16 @@ router.use(isAdmin);
 router.get('/overview', getDashboardOverview);
 
 // Subscription routes
-router.get('/subscriptions', getSubscriptions);
+router.get('/subscriptions', validate(getSubscriptionsSchema, 'query'), getSubscriptions);
 router.get('/subscriptions/pending', getPendingSubscriptions);
 router.get('/subscriptions/stats', getSubscriptionStats);
 router.post('/subscriptions/:subscriptionId/approve', approveSubscription);
-router.post('/subscriptions/:subscriptionId/reject', rejectSubscription);
+router.post('/subscriptions/:subscriptionId/reject', validate(rejectSubscriptionSchema), rejectSubscription);
 
 // User routes
-router.get('/users', getAllUsers);
-router.put('/users/:userId', updateUser);
-router.put('/restaurants/:restaurantId', updateRestaurant);
+router.get('/users', validate(getAllUsersSchema, 'query'), getAllUsers);
+router.put('/users/:userId', validate(updateUserSchema), updateUser);
+router.put('/restaurants/:restaurantId', validate(updateRestaurantSchema), updateRestaurant);
 router.delete('/users/:userId', deleteUser);
 router.delete('/restaurants/:restaurantId', deleteRestaurant);
 
