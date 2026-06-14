@@ -21,6 +21,7 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [cooldown, setCooldown] = useState(false);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -95,6 +96,8 @@ export default function LoginPage() {
     setError("");
     setSuccess("");
 
+    if (cooldown) return;
+
     if (!email.trim()) {
       setError("Email address is required");
       return;
@@ -117,7 +120,10 @@ export default function LoginPage() {
       await login(email.trim(), password, rememberMe);
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Invalid email or password. Please try again.");
+      const message = err instanceof Error ? err.message : "Invalid email or password. Please try again.";
+      setError(message);
+      setCooldown(true);
+      setTimeout(() => setCooldown(false), 3000);
     } finally {
       setLoading(false);
     }
@@ -215,7 +221,7 @@ export default function LoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    disabled={loading || googleLoading}
+                    disabled={loading || googleLoading || cooldown}
                     autoComplete="email"
                   />
                 </div>
@@ -232,7 +238,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    disabled={loading || googleLoading}
+                    disabled={loading || googleLoading || cooldown}
                     autoComplete="current-password"
                   />
                   <button
@@ -240,7 +246,7 @@ export default function LoginPage() {
                     className="login-password-toggle"
                     onClick={() => setShowPassword(!showPassword)}
                     tabIndex={-1}
-                    disabled={loading || googleLoading}
+                    disabled={loading || googleLoading || cooldown}
                   >
                     {showPassword ? (
                       <EyeOff size={17} strokeWidth={1.5} />
@@ -257,7 +263,7 @@ export default function LoginPage() {
                     type="checkbox"
                     checked={rememberMe}
                     onChange={(e) => setRememberMe(e.target.checked)}
-                    disabled={loading || googleLoading}
+                    disabled={loading || googleLoading || cooldown}
                   />
                   <span>Remember for 30 days</span>
                 </label>
@@ -269,7 +275,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 className="login-submit-btn"
-                disabled={loading || googleLoading}
+                disabled={loading || googleLoading || cooldown}
               >
                 {loading ? (
                   "Signing in..."

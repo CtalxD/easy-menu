@@ -4,6 +4,7 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
+import helmet from 'helmet';
 import authRoutes from './routes/authRoutes';
 import menuRoutes from './routes/menuRoutes';
 import publicMenuRoutes from './routes/publicMenuRoutes';
@@ -13,6 +14,9 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
+
+// Security headers
+app.use(helmet());
 
 // CORS configuration
 app.use(cors({
