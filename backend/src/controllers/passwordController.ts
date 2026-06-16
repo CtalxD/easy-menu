@@ -5,8 +5,12 @@ import { Resend } from 'resend';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 
-// Initialize Resend with your API key
-const resend = new Resend(process.env.RESEND_API_KEY || 're_jVfF6CLp_BP7deGtDuEJZgyJ4JGhX1WGC');
+// Initialize Resend with API key from environment variables only
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
+if (!RESEND_API_KEY) {
+  console.warn('Warning: RESEND_API_KEY is not set in environment variables');
+}
+const resend = new Resend(RESEND_API_KEY);
 
 // Store OTPs temporarily (in production, use Redis with TTL)
 const otpStore = new Map<string, { otp: string; email: string; expiresAt: number }>();
@@ -115,6 +119,27 @@ export const forgotPassword = async (req: Request, res: Response): Promise<void>
     console.log('Sending email via Resend...');
     
     try {
+      // Check if API key is available
+      if (!RESEND_API_KEY) {
+        console.error('RESEND_API_KEY is not configured');
+        console.log('----------------------------------------');
+        console.log('DEVELOPMENT MODE - OTP (email disabled)');
+        console.log('Email:', email);
+        console.log('OTP:', otp);
+        console.log('----------------------------------------');
+        console.log('To enable email sending, set RESEND_API_KEY in .env');
+        console.log('Get your API key at: https://resend.com/api-keys');
+        console.log('==========================================');
+        
+        res.status(200).json({ 
+          message: 'If an account exists, a reset OTP has been sent.',
+          requiresOTP: true,
+          email: email,
+          devOtp: process.env.NODE_ENV === 'development' ? otp : undefined,
+        });
+        return;
+      }
+
       const { data, error } = await resend.emails.send({
         from: 'EasyMenu <onboarding@resend.dev>',
         to: [email],
