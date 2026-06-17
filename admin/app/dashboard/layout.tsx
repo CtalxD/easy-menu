@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  Shield, LogOut, CreditCard, Users, LayoutDashboard, Store, Activity
+  Shield, LogOut, CreditCard, Users, LayoutDashboard, Store, Activity, Menu
 } from "lucide-react";
 import "./layout.css";
 
@@ -164,6 +164,11 @@ export default function DashboardLayout({
       label: "Subscriptions",
       badge: pendingCount,
     },
+    {
+    href: "/dashboard/menu-management",
+    icon: Menu,
+    label: "Menu Management",
+  },
     {
       href: "/dashboard/activity",
       icon: Activity,

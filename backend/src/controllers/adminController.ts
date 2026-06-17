@@ -588,15 +588,12 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // Don't allow deleting yourself
     if (userId === adminUserId) {
       res.status(400).json({ message: 'You cannot delete your own account' });
       return;
     }
 
-    // Delete all related data for each restaurant owned by this user
     for (const restaurant of user.restaurants) {
-      // Delete in order of dependencies
       await prisma.menuSchedule.deleteMany({ where: { restaurantId: restaurant.id } });
       await prisma.menuView.deleteMany({ where: { restaurantId: restaurant.id } });
       await prisma.subscription.deleteMany({ where: { restaurantId: restaurant.id } });
@@ -605,19 +602,14 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       await prisma.location.deleteMany({ where: { restaurantId: restaurant.id } });
     }
 
-    // Delete verification tokens and password reset tokens
     await prisma.verificationToken.deleteMany({ where: { userId } });
     await prisma.passwordResetToken.deleteMany({ where: { userId } });
-    
-    // Delete activity logs for this user
     await prisma.activityLog.deleteMany({ where: { userId } });
 
-    // Delete all restaurants owned by user
     await prisma.restaurant.deleteMany({
       where: { ownerId: userId },
     });
 
-    // Finally delete the user
     await prisma.user.delete({
       where: { id: userId },
     });
@@ -654,7 +646,6 @@ export const deleteRestaurant = async (req: Request, res: Response): Promise<voi
       return;
     }
 
-    // Delete related records first
     await prisma.menuSchedule.deleteMany({ where: { restaurantId } });
     await prisma.menuView.deleteMany({ where: { restaurantId } });
     await prisma.subscription.deleteMany({ where: { restaurantId } });
@@ -662,7 +653,6 @@ export const deleteRestaurant = async (req: Request, res: Response): Promise<voi
     await prisma.category.deleteMany({ where: { restaurantId } });
     await prisma.location.deleteMany({ where: { restaurantId } });
 
-    // Delete the restaurant
     await prisma.restaurant.delete({
       where: { id: restaurantId },
     });
@@ -741,7 +731,6 @@ export const getDashboardOverview = async (req: Request, res: Response): Promise
       }),
     ]);
 
-    // Plan distribution
     const planDistribution = {
       FREE: 0,
       STARTER: 0,
@@ -757,7 +746,6 @@ export const getDashboardOverview = async (req: Request, res: Response): Promise
       });
     });
 
-    // Recent activity
     const recentActivity = recentSubscriptions.map((sub) => ({
       type: 'subscription',
       message: sub.paymentStatus === 'PENDING'
@@ -779,6 +767,319 @@ export const getDashboardOverview = async (req: Request, res: Response): Promise
     });
   } catch (error) {
     console.error('Get dashboard overview error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// ==================== MENU MANAGEMENT ====================
+
+// Get restaurant's full menu (items + categories)
+export const getRestaurantMenu = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.params.restaurantId as string;
+
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { id: true, name: true, plan: true },
+    });
+
+    if (!restaurant) {
+      res.status(404).json({ message: 'Restaurant not found' });
+      return;
+    }
+
+    const [menuItems, categories] = await Promise.all([
+      prisma.menuItem.findMany({
+        where: { restaurantId },
+        include: {
+          category: { select: { id: true, name: true } },
+          location: { select: { id: true, name: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.category.findMany({
+        where: { restaurantId },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+
+    res.json({
+      restaurant,
+      menuItems,
+      categories,
+    });
+  } catch (error) {
+    console.error('Get restaurant menu error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Create menu item for a restaurant
+export const createRestaurantMenuItem = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.params.restaurantId as string;
+    const adminUserId = (req as any).userId;
+    const { name, description, price, categoryId, status, popular, image } = req.body;
+
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+    });
+
+    if (!restaurant) {
+      res.status(404).json({ message: 'Restaurant not found' });
+      return;
+    }
+
+    const menuItem = await prisma.menuItem.create({
+      data: {
+        name,
+        description: description || '',
+        price: typeof price === 'string' ? parseFloat(price) : price,
+        categoryId: categoryId || null,
+        status: status || 'available',
+        popular: popular || false,
+        image: image || null,
+        restaurantId,
+      },
+      include: {
+        category: { select: { id: true, name: true } },
+      },
+    });
+
+    // LOG THE ACTIVITY
+    await activityLogger.logAdminAction(
+      adminUserId,
+      'CREATE_MENU_ITEM',
+      'MENU_ITEM',
+      menuItem.id,
+      `Admin created menu item "${name}" for ${restaurant.name}`,
+      req
+    );
+
+    res.status(201).json(menuItem);
+  } catch (error) {
+    console.error('Create menu item error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Update menu item
+export const updateRestaurantMenuItem = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const itemId = req.params.itemId as string;
+    const adminUserId = (req as any).userId;
+    const { name, description, price, categoryId, status, popular, image } = req.body;
+
+    const existingItem = await prisma.menuItem.findUnique({
+      where: { id: itemId },
+      include: { restaurant: { select: { id: true, name: true } } },
+    });
+
+    if (!existingItem) {
+      res.status(404).json({ message: 'Menu item not found' });
+      return;
+    }
+
+    const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
+    if (price !== undefined) updateData.price = typeof price === 'string' ? parseFloat(price) : price;
+    if (categoryId !== undefined) updateData.categoryId = categoryId || null;
+    if (status !== undefined) updateData.status = status;
+    if (popular !== undefined) updateData.popular = popular;
+    if (image !== undefined) updateData.image = image || null;
+
+    const menuItem = await prisma.menuItem.update({
+      where: { id: itemId },
+      data: updateData,
+      include: {
+        category: { select: { id: true, name: true } },
+      },
+    });
+
+    // LOG THE ACTIVITY
+    await activityLogger.logAdminAction(
+      adminUserId,
+      'UPDATE_MENU_ITEM',
+      'MENU_ITEM',
+      itemId,
+      `Admin updated menu item "${existingItem.name}" in ${existingItem.restaurant.name}`,
+      req
+    );
+
+    res.json(menuItem);
+  } catch (error) {
+    console.error('Update menu item error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Delete menu item
+export const deleteRestaurantMenuItem = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const itemId = req.params.itemId as string;
+    const adminUserId = (req as any).userId;
+
+    const existingItem = await prisma.menuItem.findUnique({
+      where: { id: itemId },
+      include: { restaurant: { select: { id: true, name: true } } },
+    });
+
+    if (!existingItem) {
+      res.status(404).json({ message: 'Menu item not found' });
+      return;
+    }
+
+    await prisma.menuItem.delete({ where: { id: itemId } });
+
+    // LOG THE ACTIVITY
+    await activityLogger.logAdminAction(
+      adminUserId,
+      'DELETE_MENU_ITEM',
+      'MENU_ITEM',
+      itemId,
+      `Admin deleted menu item "${existingItem.name}" from ${existingItem.restaurant.name}`,
+      req
+    );
+
+    res.json({ message: 'Menu item deleted successfully' });
+  } catch (error) {
+    console.error('Delete menu item error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Create category for a restaurant
+export const createRestaurantCategory = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const restaurantId = req.params.restaurantId as string;
+    const adminUserId = (req as any).userId;
+    const { name, description } = req.body;
+
+    const restaurant = await prisma.restaurant.findUnique({
+      where: { id: restaurantId },
+    });
+
+    if (!restaurant) {
+      res.status(404).json({ message: 'Restaurant not found' });
+      return;
+    }
+
+    // Check if category already exists
+    const existing = await prisma.category.findFirst({
+      where: { name: name.trim(), restaurantId },
+    });
+
+    if (existing) {
+      res.status(400).json({ message: 'Category with this name already exists' });
+      return;
+    }
+
+    const category = await prisma.category.create({
+      data: {
+        name: name.trim(),
+        description: description || '',
+        restaurantId,
+      },
+    });
+
+    // LOG THE ACTIVITY
+    await activityLogger.logAdminAction(
+      adminUserId,
+      'CREATE_CATEGORY',
+      'CATEGORY',
+      category.id,
+      `Admin created category "${name}" for ${restaurant.name}`,
+      req
+    );
+
+    res.status(201).json(category);
+  } catch (error) {
+    console.error('Create category error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Update category
+export const updateRestaurantCategory = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const categoryId = req.params.categoryId as string;
+    const adminUserId = (req as any).userId;
+    const { name, description } = req.body;
+
+    const existing = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: { restaurant: { select: { id: true, name: true } } },
+    });
+
+    if (!existing) {
+      res.status(404).json({ message: 'Category not found' });
+      return;
+    }
+
+    const updateData: any = {};
+    if (name) updateData.name = name.trim();
+    if (description !== undefined) updateData.description = description;
+
+    const category = await prisma.category.update({
+      where: { id: categoryId },
+      data: updateData,
+    });
+
+    // LOG THE ACTIVITY
+    await activityLogger.logAdminAction(
+      adminUserId,
+      'UPDATE_CATEGORY',
+      'CATEGORY',
+      categoryId,
+      `Admin updated category "${existing.name}" in ${existing.restaurant.name}`,
+      req
+    );
+
+    res.json(category);
+  } catch (error) {
+    console.error('Update category error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Delete category
+export const deleteRestaurantCategory = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const categoryId = req.params.categoryId as string;
+    const adminUserId = (req as any).userId;
+
+    const existing = await prisma.category.findUnique({
+      where: { id: categoryId },
+      include: { restaurant: { select: { id: true, name: true } } },
+    });
+
+    if (!existing) {
+      res.status(404).json({ message: 'Category not found' });
+      return;
+    }
+
+    // Unlink menu items from this category
+    await prisma.menuItem.updateMany({
+      where: { categoryId },
+      data: { categoryId: null },
+    });
+
+    await prisma.category.delete({ where: { id: categoryId } });
+
+    // LOG THE ACTIVITY
+    await activityLogger.logAdminAction(
+      adminUserId,
+      'DELETE_CATEGORY',
+      'CATEGORY',
+      categoryId,
+      `Admin deleted category "${existing.name}" from ${existing.restaurant.name}`,
+      req
+    );
+
+    res.json({ message: 'Category deleted successfully' });
+  } catch (error) {
+    console.error('Delete category error:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 };

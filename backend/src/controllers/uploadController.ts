@@ -1,4 +1,5 @@
 // backend/src/controllers/uploadController.ts
+
 import { Request, Response } from 'express';
 import cloudinary from '../lib/cloudinary';
 import { prisma } from '../lib/prisma';
@@ -49,7 +50,7 @@ export const uploadMenuItemImage = async (req: Request, res: Response): Promise<
       return;
     }
 
-    // If itemId is provided, verify ownership
+    // If itemId is provided and not empty, verify ownership
     if (itemId && itemId.trim() !== '') {
       const menuItem = await prisma.menuItem.findFirst({
         where: { id: itemId, restaurantId: user.restaurants[0].id },
@@ -92,7 +93,6 @@ export const uploadMenuItemImage = async (req: Request, res: Response): Promise<
     console.error('Error message:', error?.message);
     console.error('Full error:', error);
 
-    // Cloudinary-specific error handling
     if (error?.http_code) {
       res.status(400).json({
         message: `Cloudinary error: ${error.message}`,
