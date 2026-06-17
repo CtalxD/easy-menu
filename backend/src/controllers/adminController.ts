@@ -205,12 +205,20 @@ export const approveSubscription = async (req: Request, res: Response): Promise<
       data: { plan: subscription.plan },
     });
 
-    // LOG THE ACTIVITY
-    await activityLogger.logSubscriptionApproved(
+    // LOG THE ACTIVITY - precise
+    const ownerName = subscription.restaurant.owner.name;
+    const ownerEmail = subscription.restaurant.owner.email;
+    const restaurantName = subscription.restaurant.name;
+    const plan = subscription.plan;
+    const price = subscription.price;
+    const billingCycle = subscription.billingCycle;
+
+    await activityLogger.logAdminAction(
       adminUserId,
+      'APPROVE_SUBSCRIPTION',
+      'SUBSCRIPTION',
       subscriptionId,
-      subscription.plan,
-      subscription.restaurant.owner.id,
+      `Approved ${plan} plan (${billingCycle}, Rs. ${price}) for "${restaurantName}" owned by ${ownerName} (${ownerEmail})`,
       req
     );
 
@@ -236,6 +244,11 @@ export const rejectSubscription = async (req: Request, res: Response): Promise<v
 
     const subscription = await prisma.subscription.findUnique({
       where: { id: subscriptionId },
+      include: {
+        restaurant: {
+          select: { name: true },
+        },
+      },
     });
 
     if (!subscription) {
@@ -256,12 +269,13 @@ export const rejectSubscription = async (req: Request, res: Response): Promise<v
       },
     });
 
-    // LOG THE ACTIVITY
-    await activityLogger.logSubscriptionRejected(
+    // LOG THE ACTIVITY - precise
+    await activityLogger.logAdminAction(
       adminUserId,
+      'REJECT_SUBSCRIPTION',
+      'SUBSCRIPTION',
       subscriptionId,
-      subscription.plan,
-      reason || 'No reason provided',
+      `Rejected ${subscription.plan} plan for "${subscription.restaurant.name}": ${reason || 'No reason provided'}`,
       req
     );
 
@@ -439,10 +453,29 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     }
 
     const updateData: any = {};
-    if (name) updateData.name = name;
-    if (email) updateData.email = email;
-    if (admin !== undefined) updateData.admin = admin;
-    if (verified !== undefined) updateData.verified = verified;
+    const changes: string[] = [];
+    
+    if (name && name !== existingUser.name) {
+      updateData.name = name;
+      changes.push(`Name: "${existingUser.name}" → "${name}"`);
+    }
+    if (email && email !== existingUser.email) {
+      updateData.email = email;
+      changes.push(`Email: "${existingUser.email}" → "${email}"`);
+    }
+    if (admin !== undefined && admin !== existingUser.admin) {
+      updateData.admin = admin;
+      changes.push(`Admin: ${existingUser.admin ? 'Yes → No' : 'No → Yes'}`);
+    }
+    if (verified !== undefined && verified !== existingUser.verified) {
+      updateData.verified = verified;
+      changes.push(`Verified: ${existingUser.verified ? 'Yes → No' : 'No → Yes'}`);
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      res.json({ message: 'No changes detected', user: existingUser });
+      return;
+    }
 
     const updatedUser = await prisma.user.update({
       where: { id: userId },
@@ -472,19 +505,13 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       },
     });
 
-    // LOG THE ACTIVITY
-    const changes: string[] = [];
-    if (name && name !== existingUser.name) changes.push(`name: ${existingUser.name} → ${name}`);
-    if (email && email !== existingUser.email) changes.push(`email: ${existingUser.email} → ${email}`);
-    if (admin !== undefined && admin !== existingUser.admin) changes.push(`admin: ${existingUser.admin} → ${admin}`);
-    if (verified !== undefined && verified !== existingUser.verified) changes.push(`verified: ${existingUser.verified} → ${verified}`);
-    
+    // LOG THE ACTIVITY - precise
     await activityLogger.logAdminAction(
       adminUserId,
       'UPDATE_USER',
       'USER',
       userId,
-      `Admin updated user ${existingUser.name} (${changes.join(', ')})`,
+      `Updated user "${existingUser.name}": ${changes.join('; ')}`,
       req
     );
 
@@ -515,11 +542,33 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
     }
 
     const updateData: any = {};
-    if (name) updateData.name = name;
-    if (phone !== undefined) updateData.phone = phone;
-    if (plan) updateData.plan = plan as any;
-    if (address !== undefined) updateData.address = address;
-    if (description !== undefined) updateData.description = description;
+    const changes: string[] = [];
+    
+    if (name && name !== existingRestaurant.name) {
+      updateData.name = name;
+      changes.push(`Name: "${existingRestaurant.name}" → "${name}"`);
+    }
+    if (phone !== undefined && phone !== existingRestaurant.phone) {
+      updateData.phone = phone;
+      changes.push(`Phone: "${existingRestaurant.phone || 'None'}" → "${phone || 'None'}"`);
+    }
+    if (plan && plan !== existingRestaurant.plan) {
+      updateData.plan = plan;
+      changes.push(`Plan: "${existingRestaurant.plan}" → "${plan}"`);
+    }
+    if (address !== undefined && address !== existingRestaurant.address) {
+      updateData.address = address;
+      changes.push(`Address updated`);
+    }
+    if (description !== undefined && description !== existingRestaurant.description) {
+      updateData.description = description;
+      changes.push(`Description updated`);
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      res.json({ message: 'No changes detected', restaurant: existingRestaurant });
+      return;
+    }
 
     const updatedRestaurant = await prisma.restaurant.update({
       where: { id: restaurantId },
@@ -542,19 +591,13 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
       },
     });
 
-    // LOG THE ACTIVITY
-    const changes: string[] = [];
-    if (name && name !== existingRestaurant.name) changes.push(`name: ${existingRestaurant.name} → ${name}`);
-    if (plan && plan !== existingRestaurant.plan) changes.push(`plan: ${existingRestaurant.plan} → ${plan}`);
-    if (address !== undefined && address !== existingRestaurant.address) changes.push('address updated');
-    if (description !== undefined && description !== existingRestaurant.description) changes.push('description updated');
-    
+    // LOG THE ACTIVITY - precise
     await activityLogger.logAdminAction(
       adminUserId,
       'UPDATE_RESTAURANT',
       'RESTAURANT',
       restaurantId,
-      `Admin updated restaurant ${existingRestaurant.name} (${changes.join(', ')})`,
+      `Updated restaurant "${existingRestaurant.name}": ${changes.join('; ')}`,
       req
     );
 
@@ -614,13 +657,13 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       where: { id: userId },
     });
 
-    // LOG THE ACTIVITY
+    // LOG THE ACTIVITY - precise
     await activityLogger.logAdminAction(
       adminUserId,
       'DELETE_USER',
       'USER',
       userId,
-      `Admin deleted user: ${user.name} (${user.email})`,
+      `Deleted user "${user.name}" (${user.email}) and all their data`,
       req
     );
 
@@ -657,13 +700,13 @@ export const deleteRestaurant = async (req: Request, res: Response): Promise<voi
       where: { id: restaurantId },
     });
 
-    // LOG THE ACTIVITY
+    // LOG THE ACTIVITY - precise
     await activityLogger.logAdminAction(
       adminUserId,
       'DELETE_RESTAURANT',
       'RESTAURANT',
       restaurantId,
-      `Admin deleted restaurant: ${restaurant.name}`,
+      `Deleted restaurant "${restaurant.name}" and all its data`,
       req
     );
 
@@ -814,7 +857,7 @@ export const getRestaurantMenu = async (req: Request, res: Response): Promise<vo
   }
 };
 
-// Create menu item for a restaurant
+// Create menu item for a restaurant - with precise logging
 export const createRestaurantMenuItem = async (req: Request, res: Response): Promise<void> => {
   try {
     const restaurantId = req.params.restaurantId as string;
@@ -823,11 +866,19 @@ export const createRestaurantMenuItem = async (req: Request, res: Response): Pro
 
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: restaurantId },
+      select: { id: true, name: true },
     });
 
     if (!restaurant) {
       res.status(404).json({ message: 'Restaurant not found' });
       return;
+    }
+
+    // Get category name if provided
+    let categoryName = 'Uncategorized';
+    if (categoryId) {
+      const cat = await prisma.category.findUnique({ where: { id: categoryId }, select: { name: true } });
+      if (cat) categoryName = cat.name;
     }
 
     const menuItem = await prisma.menuItem.create({
@@ -846,13 +897,23 @@ export const createRestaurantMenuItem = async (req: Request, res: Response): Pro
       },
     });
 
-    // LOG THE ACTIVITY
+    // LOG THE ACTIVITY - precise with all details
+    const details: string[] = [
+      `Name: "${menuItem.name}"`,
+      `Price: Rs. ${menuItem.price}`,
+      `Category: ${categoryName}`,
+      `Status: ${menuItem.status}`,
+      `Popular: ${menuItem.popular ? 'Yes' : 'No'}`,
+    ];
+    if (menuItem.image) details.push('Has image');
+    if (menuItem.description) details.push('Has description');
+
     await activityLogger.logAdminAction(
       adminUserId,
       'CREATE_MENU_ITEM',
       'MENU_ITEM',
       menuItem.id,
-      `Admin created menu item "${name}" for ${restaurant.name}`,
+      `Created menu item in "${restaurant.name}": ${details.join(' | ')}`,
       req
     );
 
@@ -863,7 +924,7 @@ export const createRestaurantMenuItem = async (req: Request, res: Response): Pro
   }
 };
 
-// Update menu item
+// Update menu item - with precise change tracking
 export const updateRestaurantMenuItem = async (req: Request, res: Response): Promise<void> => {
   try {
     const itemId = req.params.itemId as string;
@@ -872,7 +933,10 @@ export const updateRestaurantMenuItem = async (req: Request, res: Response): Pro
 
     const existingItem = await prisma.menuItem.findUnique({
       where: { id: itemId },
-      include: { restaurant: { select: { id: true, name: true } } },
+      include: { 
+        restaurant: { select: { id: true, name: true } },
+        category: { select: { id: true, name: true } },
+      },
     });
 
     if (!existingItem) {
@@ -881,13 +945,58 @@ export const updateRestaurantMenuItem = async (req: Request, res: Response): Pro
     }
 
     const updateData: any = {};
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
-    if (price !== undefined) updateData.price = typeof price === 'string' ? parseFloat(price) : price;
-    if (categoryId !== undefined) updateData.categoryId = categoryId || null;
-    if (status !== undefined) updateData.status = status;
-    if (popular !== undefined) updateData.popular = popular;
-    if (image !== undefined) updateData.image = image || null;
+    const changes: string[] = [];
+
+    // Track each change precisely
+    if (name !== undefined && name !== existingItem.name) {
+      updateData.name = name;
+      changes.push(`Name: "${existingItem.name}" → "${name}"`);
+    }
+    if (description !== undefined && description !== (existingItem.description || '')) {
+      updateData.description = description;
+      if (!existingItem.description && description) changes.push('Description added');
+      else if (existingItem.description && !description) changes.push('Description removed');
+      else changes.push('Description updated');
+    }
+    if (price !== undefined) {
+      const newPrice = typeof price === 'string' ? parseFloat(price) : price;
+      if (newPrice !== existingItem.price) {
+        updateData.price = newPrice;
+        changes.push(`Price: Rs. ${existingItem.price} → Rs. ${newPrice}`);
+      }
+    }
+    if (categoryId !== undefined) {
+      const newCatId = categoryId || null;
+      if (newCatId !== existingItem.categoryId) {
+        updateData.categoryId = newCatId;
+        const oldCatName = existingItem.category?.name || 'Uncategorized';
+        let newCatName = 'Uncategorized';
+        if (newCatId) {
+          const cat = await prisma.category.findUnique({ where: { id: newCatId }, select: { name: true } });
+          if (cat) newCatName = cat.name;
+        }
+        changes.push(`Category: "${oldCatName}" → "${newCatName}"`);
+      }
+    }
+    if (status !== undefined && status !== existingItem.status) {
+      updateData.status = status;
+      changes.push(`Status: "${existingItem.status}" → "${status}"`);
+    }
+    if (popular !== undefined && popular !== existingItem.popular) {
+      updateData.popular = popular;
+      changes.push(`Popular: ${existingItem.popular ? 'Yes → No' : 'No → Yes'}`);
+    }
+    if (image !== undefined && image !== existingItem.image) {
+      updateData.image = image || null;
+      if (image && !existingItem.image) changes.push('Image added');
+      else if (!image && existingItem.image) changes.push('Image removed');
+      else changes.push('Image updated');
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      res.json({ message: 'No changes detected', menuItem: existingItem });
+      return;
+    }
 
     const menuItem = await prisma.menuItem.update({
       where: { id: itemId },
@@ -897,13 +1006,13 @@ export const updateRestaurantMenuItem = async (req: Request, res: Response): Pro
       },
     });
 
-    // LOG THE ACTIVITY
+    // LOG THE ACTIVITY - precise with all changes
     await activityLogger.logAdminAction(
       adminUserId,
       'UPDATE_MENU_ITEM',
       'MENU_ITEM',
       itemId,
-      `Admin updated menu item "${existingItem.name}" in ${existingItem.restaurant.name}`,
+      `Updated "${existingItem.name}" in "${existingItem.restaurant.name}": ${changes.join('; ')}`,
       req
     );
 
@@ -914,7 +1023,7 @@ export const updateRestaurantMenuItem = async (req: Request, res: Response): Pro
   }
 };
 
-// Delete menu item
+// Delete menu item - with precise logging
 export const deleteRestaurantMenuItem = async (req: Request, res: Response): Promise<void> => {
   try {
     const itemId = req.params.itemId as string;
@@ -922,7 +1031,10 @@ export const deleteRestaurantMenuItem = async (req: Request, res: Response): Pro
 
     const existingItem = await prisma.menuItem.findUnique({
       where: { id: itemId },
-      include: { restaurant: { select: { id: true, name: true } } },
+      include: { 
+        restaurant: { select: { id: true, name: true } },
+        category: { select: { id: true, name: true } },
+      },
     });
 
     if (!existingItem) {
@@ -930,15 +1042,20 @@ export const deleteRestaurantMenuItem = async (req: Request, res: Response): Pro
       return;
     }
 
+    const itemName = existingItem.name;
+    const itemPrice = existingItem.price;
+    const categoryName = existingItem.category?.name || 'Uncategorized';
+    const restaurantName = existingItem.restaurant.name;
+
     await prisma.menuItem.delete({ where: { id: itemId } });
 
-    // LOG THE ACTIVITY
+    // LOG THE ACTIVITY - precise
     await activityLogger.logAdminAction(
       adminUserId,
       'DELETE_MENU_ITEM',
       'MENU_ITEM',
       itemId,
-      `Admin deleted menu item "${existingItem.name}" from ${existingItem.restaurant.name}`,
+      `Deleted "${itemName}" (Rs. ${itemPrice}, ${categoryName}) from "${restaurantName}"`,
       req
     );
 
@@ -949,7 +1066,7 @@ export const deleteRestaurantMenuItem = async (req: Request, res: Response): Pro
   }
 };
 
-// Create category for a restaurant
+// Create category for a restaurant - with precise logging
 export const createRestaurantCategory = async (req: Request, res: Response): Promise<void> => {
   try {
     const restaurantId = req.params.restaurantId as string;
@@ -958,6 +1075,7 @@ export const createRestaurantCategory = async (req: Request, res: Response): Pro
 
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: restaurantId },
+      select: { id: true, name: true },
     });
 
     if (!restaurant) {
@@ -983,13 +1101,13 @@ export const createRestaurantCategory = async (req: Request, res: Response): Pro
       },
     });
 
-    // LOG THE ACTIVITY
+    // LOG THE ACTIVITY - precise
     await activityLogger.logAdminAction(
       adminUserId,
       'CREATE_CATEGORY',
       'CATEGORY',
       category.id,
-      `Admin created category "${name}" for ${restaurant.name}`,
+      `Created category "${name}" in "${restaurant.name}"${description ? ` - ${description}` : ''}`,
       req
     );
 
@@ -1000,7 +1118,7 @@ export const createRestaurantCategory = async (req: Request, res: Response): Pro
   }
 };
 
-// Update category
+// Update category - with precise change tracking
 export const updateRestaurantCategory = async (req: Request, res: Response): Promise<void> => {
   try {
     const categoryId = req.params.categoryId as string;
@@ -1009,7 +1127,10 @@ export const updateRestaurantCategory = async (req: Request, res: Response): Pro
 
     const existing = await prisma.category.findUnique({
       where: { id: categoryId },
-      include: { restaurant: { select: { id: true, name: true } } },
+      include: { 
+        restaurant: { select: { id: true, name: true } },
+        _count: { select: { menuItems: true } },
+      },
     });
 
     if (!existing) {
@@ -1018,21 +1139,36 @@ export const updateRestaurantCategory = async (req: Request, res: Response): Pro
     }
 
     const updateData: any = {};
-    if (name) updateData.name = name.trim();
-    if (description !== undefined) updateData.description = description;
+    const changes: string[] = [];
+
+    if (name && name.trim() !== existing.name) {
+      updateData.name = name.trim();
+      changes.push(`Name: "${existing.name}" → "${name.trim()}"`);
+    }
+    if (description !== undefined && description !== (existing.description || '')) {
+      updateData.description = description;
+      if (!existing.description && description) changes.push('Description added');
+      else if (existing.description && !description) changes.push('Description removed');
+      else changes.push('Description updated');
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      res.json({ message: 'No changes detected', category: existing });
+      return;
+    }
 
     const category = await prisma.category.update({
       where: { id: categoryId },
       data: updateData,
     });
 
-    // LOG THE ACTIVITY
+    // LOG THE ACTIVITY - precise
     await activityLogger.logAdminAction(
       adminUserId,
       'UPDATE_CATEGORY',
       'CATEGORY',
       categoryId,
-      `Admin updated category "${existing.name}" in ${existing.restaurant.name}`,
+      `Updated category "${existing.name}" in "${existing.restaurant.name}": ${changes.join('; ')} (${existing._count.menuItems} items)`,
       req
     );
 
@@ -1043,7 +1179,7 @@ export const updateRestaurantCategory = async (req: Request, res: Response): Pro
   }
 };
 
-// Delete category
+// Delete category - with precise logging
 export const deleteRestaurantCategory = async (req: Request, res: Response): Promise<void> => {
   try {
     const categoryId = req.params.categoryId as string;
@@ -1051,13 +1187,20 @@ export const deleteRestaurantCategory = async (req: Request, res: Response): Pro
 
     const existing = await prisma.category.findUnique({
       where: { id: categoryId },
-      include: { restaurant: { select: { id: true, name: true } } },
+      include: { 
+        restaurant: { select: { id: true, name: true } },
+        _count: { select: { menuItems: true } },
+      },
     });
 
     if (!existing) {
       res.status(404).json({ message: 'Category not found' });
       return;
     }
+
+    const categoryName = existing.name;
+    const restaurantName = existing.restaurant.name;
+    const affectedItems = existing._count.menuItems;
 
     // Unlink menu items from this category
     await prisma.menuItem.updateMany({
@@ -1067,13 +1210,13 @@ export const deleteRestaurantCategory = async (req: Request, res: Response): Pro
 
     await prisma.category.delete({ where: { id: categoryId } });
 
-    // LOG THE ACTIVITY
+    // LOG THE ACTIVITY - precise
     await activityLogger.logAdminAction(
       adminUserId,
       'DELETE_CATEGORY',
       'CATEGORY',
       categoryId,
-      `Admin deleted category "${existing.name}" from ${existing.restaurant.name}`,
+      `Deleted category "${categoryName}" from "${restaurantName}" (${affectedItems} items became uncategorized)`,
       req
     );
 
