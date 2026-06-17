@@ -5,7 +5,7 @@ import rateLimit from 'express-rate-limit';
 // Strict limiter for login (prevents credential stuffing)
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts per window per IP
+  max: 10, // 10 attempts per window per IP
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -19,7 +19,7 @@ export const loginLimiter = rateLimit({
 // Limiter for forgot-password (prevents email spam)
 export const forgotPasswordLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // 3 reset requests per hour per IP
+  max: 10, // 10 reset requests per hour per IP
   standardHeaders: true,
   legacyHeaders: false,
   message: {
@@ -45,7 +45,7 @@ export const verifyOtpLimiter = rateLimit({
 // Limiter for password reset (prevents token brute-forcing)
 export const resetPasswordLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 reset attempts per window per IP
+  max: 10, // 10 reset attempts per window per IP
   standardHeaders: true,
   legacyHeaders: false,
   message: {
