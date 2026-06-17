@@ -9,6 +9,7 @@ import authRoutes from './routes/authRoutes';
 import menuRoutes from './routes/menuRoutes';
 import publicMenuRoutes from './routes/publicMenuRoutes';
 import adminRoutes from './routes/adminRoutes';
+import activityRoutes from './routes/activityRoutes';
 
 dotenv.config();
 
@@ -43,6 +44,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/menu', menuRoutes);
 app.use('/api/public/menu', publicMenuRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/activity', activityRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -1,11 +1,12 @@
-//admin/app/dashboard/layout.tsx
+// admin/app/dashboard/layout.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import {
-  Shield, LogOut, CreditCard, Users, LayoutDashboard, Store
+  Shield, LogOut, CreditCard, Users, LayoutDashboard, Store, Activity
 } from "lucide-react";
 import "./layout.css";
 
@@ -19,6 +20,12 @@ export default function DashboardLayout({
   const [adminUser, setAdminUser] = useState<any>(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem("adminToken");
@@ -29,19 +36,26 @@ export default function DashboardLayout({
       return;
     }
 
-    const parsed = JSON.parse(user);
-    if (!parsed.admin) {
+    try {
+      const parsed = JSON.parse(user);
+      if (!parsed.admin) {
+        router.push("/login");
+        return;
+      }
+      setAdminUser(parsed);
+      fetchPendingCount(token);
+    } catch (e) {
+      console.error('Failed to parse admin user:', e);
       router.push("/login");
       return;
     }
 
-    setAdminUser(parsed);
-    fetchPendingCount(token);
-
     // Refresh pending count every 30 seconds
     const interval = setInterval(() => {
-      const currentToken = localStorage.getItem("adminToken") || token;
-      fetchPendingCount(currentToken);
+      const currentToken = localStorage.getItem("adminToken");
+      if (currentToken) {
+        fetchPendingCount(currentToken);
+      }
     }, 30000);
 
     return () => clearInterval(interval);
@@ -49,7 +63,9 @@ export default function DashboardLayout({
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) {
         setSidebarCollapsed(true);
       } else {
         setSidebarCollapsed(false);
@@ -64,16 +80,50 @@ export default function DashboardLayout({
   const fetchPendingCount = async (token: string) => {
     try {
       const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      
+      if (!token) {
+        console.log('No token available for fetchPendingCount');
+        return;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
+
       const res = await fetch(`${API_URL}/api/admin/subscriptions/pending`, {
-        headers: { Authorization: `Bearer ${token}` },
-        credentials: "include"
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        credentials: "include",
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
+
       if (res.ok) {
         const data = await res.json();
-        setPendingCount(data.length);
+        setPendingCount(Array.isArray(data) ? data.length : 0);
+      } else {
+        if (res.status === 401 || res.status === 403) {
+          console.log('Session expired, redirecting to login');
+          ["adminToken", "adminUser", "adminRestaurantId", "adminRestaurantName"].forEach(
+            key => localStorage.removeItem(key)
+          );
+          router.push("/login");
+          return;
+        }
+        console.error('Failed to fetch pending count:', res.status, res.statusText);
       }
-    } catch (error) {
-      console.error("Failed to fetch pending count:", error);
+    } catch (error: any) {
+      if (error.name === 'AbortError') {
+        console.log('Pending count fetch timed out');
+        return;
+      }
+      if (error.name === 'TypeError' && error.message === 'Failed to fetch') {
+        console.log('Network error - server might be down');
+        return;
+      }
+      console.error("Failed to fetch pending count:", error.message);
     }
   };
 
@@ -114,12 +164,21 @@ export default function DashboardLayout({
       label: "Subscriptions",
       badge: pendingCount,
     },
+    {
+      href: "/dashboard/activity",
+      icon: Activity,
+      label: "Activity Logs",
+    },
   ];
+
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div className="admin-layout">
       {/* Mobile overlay */}
-      {!sidebarCollapsed && window.innerWidth < 768 && (
+      {!sidebarCollapsed && isMobile && (
         <div 
           className="sidebar-overlay" 
           onClick={() => setSidebarCollapsed(true)}

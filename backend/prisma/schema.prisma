@@ -46,6 +46,7 @@ model User {
   restaurants         Restaurant[]
   verificationTokens  VerificationToken[]
   passwordResetTokens PasswordResetToken[]
+  activityLogs        ActivityLog[]
 }
 
 model Restaurant {
@@ -183,4 +184,25 @@ model PasswordResetToken {
   
   @@index([token])
   @@index([email])
+}
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  action      String
+  entity      String
+  entityId    String?
+  description String
+  metadata    Json?
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime @default(now())
+  
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  
+  @@index([userId])
+  @@index([action])
+  @@index([entity])
+  @@index([createdAt])
+  @@index([userId, createdAt])
 }

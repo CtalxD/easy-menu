@@ -1,6 +1,8 @@
 // backend/src/controllers/adminController.ts
+
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
+import { activityLogger } from '../services/activityLogger';
 
 // Middleware to check if user is admin
 export const isAdmin = async (req: Request, res: Response, next: Function): Promise<void> => {
@@ -26,22 +28,18 @@ export const isAdmin = async (req: Request, res: Response, next: Function): Prom
 // Get all subscriptions with optional filters
 export const getSubscriptions = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Data is already validated by Zod middleware
     const { status, plan, search, page, limit } = req.query;
     
     const whereClause: any = {};
     
-    // Filter by payment status
     if (status && status !== 'ALL') {
       whereClause.paymentStatus = status;
     }
     
-    // Filter by plan
     if (plan && plan !== 'ALL') {
       whereClause.plan = plan;
     }
     
-    // Search by owner name or email
     if (search) {
       whereClause.restaurant = {
         owner: {
@@ -147,7 +145,6 @@ export const getSubscriptionStats = async (req: Request, res: Response): Promise
 
     const totalRevenue = completedSubscriptions.reduce((sum, sub) => sum + sub.price, 0);
     
-    // Plan breakdown for completed subscriptions
     const planBreakdown = completedSubscriptions.reduce((acc: any, sub) => {
       acc[sub.plan] = (acc[sub.plan] || 0) + sub.price;
       return acc;
@@ -172,9 +169,17 @@ export const getSubscriptionStats = async (req: Request, res: Response): Promise
 export const approveSubscription = async (req: Request, res: Response): Promise<void> => {
   try {
     const subscriptionId = req.params.subscriptionId as string;
+    const adminUserId = (req as any).userId;
 
     const subscription = await prisma.subscription.findUnique({
       where: { id: subscriptionId },
+      include: {
+        restaurant: {
+          include: {
+            owner: true,
+          },
+        },
+      },
     });
 
     if (!subscription) {
@@ -187,7 +192,6 @@ export const approveSubscription = async (req: Request, res: Response): Promise<
       return;
     }
 
-    // Update subscription status
     await prisma.subscription.update({
       where: { id: subscriptionId },
       data: { 
@@ -196,11 +200,19 @@ export const approveSubscription = async (req: Request, res: Response): Promise<
       },
     });
 
-    // Update restaurant plan
     await prisma.restaurant.update({
       where: { id: subscription.restaurantId },
       data: { plan: subscription.plan },
     });
+
+    // LOG THE ACTIVITY
+    await activityLogger.logSubscriptionApproved(
+      adminUserId,
+      subscriptionId,
+      subscription.plan,
+      subscription.restaurant.owner.id,
+      req
+    );
 
     res.json({ 
       message: 'Subscription approved and plan upgraded successfully',
@@ -219,8 +231,8 @@ export const approveSubscription = async (req: Request, res: Response): Promise<
 export const rejectSubscription = async (req: Request, res: Response): Promise<void> => {
   try {
     const subscriptionId = req.params.subscriptionId as string;
-    // Data is already validated by Zod middleware
     const { reason } = req.body;
+    const adminUserId = (req as any).userId;
 
     const subscription = await prisma.subscription.findUnique({
       where: { id: subscriptionId },
@@ -243,6 +255,15 @@ export const rejectSubscription = async (req: Request, res: Response): Promise<v
         updatedAt: new Date(),
       },
     });
+
+    // LOG THE ACTIVITY
+    await activityLogger.logSubscriptionRejected(
+      adminUserId,
+      subscriptionId,
+      subscription.plan,
+      reason || 'No reason provided',
+      req
+    );
 
     res.json({ 
       message: 'Subscription rejected successfully',
@@ -297,7 +318,6 @@ export const getSubscriptionStatus = async (req: Request, res: Response): Promis
 // Get all users with restaurant details
 export const getAllUsers = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Data is already validated by Zod middleware
     const searchQuery = (req.query.search as string) || '';
     const planFilter = (req.query.plan as string) || '';
     const statusFilter = (req.query.status as string) || '';
@@ -395,8 +415,8 @@ export const getAllUsers = async (req: Request, res: Response): Promise<void> =>
 export const updateUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.params.userId as string;
-    // Data is already validated by Zod middleware
     const { name, email, admin, verified } = req.body;
+    const adminUserId = (req as any).userId;
 
     const existingUser = await prisma.user.findUnique({
       where: { id: userId },
@@ -407,7 +427,6 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    // Check if email is being changed and if it's already taken
     if (email && email !== existingUser.email) {
       const emailExists = await prisma.user.findUnique({
         where: { email },
@@ -453,6 +472,22 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
       },
     });
 
+    // LOG THE ACTIVITY
+    const changes: string[] = [];
+    if (name && name !== existingUser.name) changes.push(`name: ${existingUser.name} → ${name}`);
+    if (email && email !== existingUser.email) changes.push(`email: ${existingUser.email} → ${email}`);
+    if (admin !== undefined && admin !== existingUser.admin) changes.push(`admin: ${existingUser.admin} → ${admin}`);
+    if (verified !== undefined && verified !== existingUser.verified) changes.push(`verified: ${existingUser.verified} → ${verified}`);
+    
+    await activityLogger.logAdminAction(
+      adminUserId,
+      'UPDATE_USER',
+      'USER',
+      userId,
+      `Admin updated user ${existingUser.name} (${changes.join(', ')})`,
+      req
+    );
+
     res.json({
       message: 'User updated successfully',
       user: updatedUser,
@@ -467,8 +502,8 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
 export const updateRestaurant = async (req: Request, res: Response): Promise<void> => {
   try {
     const restaurantId = req.params.restaurantId as string;
-    // Data is already validated by Zod middleware
     const { name, phone, plan, address, description } = req.body;
+    const adminUserId = (req as any).userId;
 
     const existingRestaurant = await prisma.restaurant.findUnique({
       where: { id: restaurantId },
@@ -507,6 +542,22 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
       },
     });
 
+    // LOG THE ACTIVITY
+    const changes: string[] = [];
+    if (name && name !== existingRestaurant.name) changes.push(`name: ${existingRestaurant.name} → ${name}`);
+    if (plan && plan !== existingRestaurant.plan) changes.push(`plan: ${existingRestaurant.plan} → ${plan}`);
+    if (address !== undefined && address !== existingRestaurant.address) changes.push('address updated');
+    if (description !== undefined && description !== existingRestaurant.description) changes.push('description updated');
+    
+    await activityLogger.logAdminAction(
+      adminUserId,
+      'UPDATE_RESTAURANT',
+      'RESTAURANT',
+      restaurantId,
+      `Admin updated restaurant ${existingRestaurant.name} (${changes.join(', ')})`,
+      req
+    );
+
     res.json({
       message: 'Restaurant updated successfully',
       restaurant: updatedRestaurant,
@@ -517,13 +568,19 @@ export const updateRestaurant = async (req: Request, res: Response): Promise<voi
   }
 };
 
+// Delete user with proper cascade handling
 export const deleteUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const userId = req.params.userId as string;
+    const adminUserId = (req as any).userId;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { restaurants: true },
+      include: { 
+        restaurants: {
+          select: { id: true }
+        } 
+      },
     });
 
     if (!user) {
@@ -532,20 +589,48 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Don't allow deleting yourself
-    if (userId === (req as any).userId) {
+    if (userId === adminUserId) {
       res.status(400).json({ message: 'You cannot delete your own account' });
       return;
     }
 
-    // Delete all restaurants owned by user first
+    // Delete all related data for each restaurant owned by this user
+    for (const restaurant of user.restaurants) {
+      // Delete in order of dependencies
+      await prisma.menuSchedule.deleteMany({ where: { restaurantId: restaurant.id } });
+      await prisma.menuView.deleteMany({ where: { restaurantId: restaurant.id } });
+      await prisma.subscription.deleteMany({ where: { restaurantId: restaurant.id } });
+      await prisma.menuItem.deleteMany({ where: { restaurantId: restaurant.id } });
+      await prisma.category.deleteMany({ where: { restaurantId: restaurant.id } });
+      await prisma.location.deleteMany({ where: { restaurantId: restaurant.id } });
+    }
+
+    // Delete verification tokens and password reset tokens
+    await prisma.verificationToken.deleteMany({ where: { userId } });
+    await prisma.passwordResetToken.deleteMany({ where: { userId } });
+    
+    // Delete activity logs for this user
+    await prisma.activityLog.deleteMany({ where: { userId } });
+
+    // Delete all restaurants owned by user
     await prisma.restaurant.deleteMany({
       where: { ownerId: userId },
     });
 
-    // Delete the user
+    // Finally delete the user
     await prisma.user.delete({
       where: { id: userId },
     });
+
+    // LOG THE ACTIVITY
+    await activityLogger.logAdminAction(
+      adminUserId,
+      'DELETE_USER',
+      'USER',
+      userId,
+      `Admin deleted user: ${user.name} (${user.email})`,
+      req
+    );
 
     res.json({ message: 'User deleted successfully' });
   } catch (error) {
@@ -558,6 +643,7 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
 export const deleteRestaurant = async (req: Request, res: Response): Promise<void> => {
   try {
     const restaurantId = req.params.restaurantId as string;
+    const adminUserId = (req as any).userId;
 
     const restaurant = await prisma.restaurant.findUnique({
       where: { id: restaurantId },
@@ -568,9 +654,28 @@ export const deleteRestaurant = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    // Delete related records first
+    await prisma.menuSchedule.deleteMany({ where: { restaurantId } });
+    await prisma.menuView.deleteMany({ where: { restaurantId } });
+    await prisma.subscription.deleteMany({ where: { restaurantId } });
+    await prisma.menuItem.deleteMany({ where: { restaurantId } });
+    await prisma.category.deleteMany({ where: { restaurantId } });
+    await prisma.location.deleteMany({ where: { restaurantId } });
+
+    // Delete the restaurant
     await prisma.restaurant.delete({
       where: { id: restaurantId },
     });
+
+    // LOG THE ACTIVITY
+    await activityLogger.logAdminAction(
+      adminUserId,
+      'DELETE_RESTAURANT',
+      'RESTAURANT',
+      restaurantId,
+      `Admin deleted restaurant: ${restaurant.name}`,
+      req
+    );
 
     res.json({ message: 'Restaurant deleted successfully' });
   } catch (error) {

@@ -1,10 +1,11 @@
 // backend/src/controllers/authController.ts
+
 import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
 import dotenv from 'dotenv';
+import { activityLogger } from '../services/activityLogger';
 
 dotenv.config();
 
@@ -12,191 +13,53 @@ dotenv.config();
 const JWT_ACCESS_SECRET = process.env.JWT_ACCESS_SECRET;
 const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
-// Generate cryptographically random secrets for development only
-const generateDevFallback = (): string => {
-  return crypto.randomBytes(64).toString('hex');
-};
-
-let devAccessFallback: string | null = null;
-let devRefreshFallback: string | null = null;
-
 // Warn in development if secrets are not set
 if (!JWT_ACCESS_SECRET && process.env.NODE_ENV !== 'production') {
-  devAccessFallback = generateDevFallback();
-  console.warn('Warning: JWT_ACCESS_SECRET not set. Using cryptographically random fallback for development only.');
-  console.warn('This fallback will change on every server restart. Set JWT_ACCESS_SECRET in .env for consistent tokens.');
+  console.warn('Warning: JWT_ACCESS_SECRET not set. Using fallback for development only.');
 }
 
 if (!JWT_REFRESH_SECRET && process.env.NODE_ENV !== 'production') {
-  devRefreshFallback = generateDevFallback();
-  console.warn('Warning: JWT_REFRESH_SECRET not set. Using cryptographically random fallback for development only.');
-  console.warn('This fallback will change on every server restart. Set JWT_REFRESH_SECRET in .env for consistent tokens.');
+  console.warn('Warning: JWT_REFRESH_SECRET not set. Using fallback for development only.');
 }
 
 // Only exit in production if secrets are missing
 if (process.env.NODE_ENV === 'production') {
-  if (!JWT_ACCESS_SECRET) {
+  if (!JWT_ACCESS_SECRET || JWT_ACCESS_SECRET === 'your-access-secret') {
     console.error('FATAL: JWT_ACCESS_SECRET is not properly configured in production');
     process.exit(1);
   }
 
-  if (!JWT_REFRESH_SECRET) {
+  if (!JWT_REFRESH_SECRET || JWT_REFRESH_SECRET === 'your-refresh-secret') {
     console.error('FATAL: JWT_REFRESH_SECRET is not properly configured in production');
     process.exit(1);
   }
 }
 
 // Use fallbacks only for development
-const getAccessSecret = (): string => {
+const getAccessSecret = () => {
   if (JWT_ACCESS_SECRET) return JWT_ACCESS_SECRET;
-  if (process.env.NODE_ENV !== 'production') {
-    if (!devAccessFallback) {
-      devAccessFallback = generateDevFallback();
-    }
-    return devAccessFallback;
-  }
+  if (process.env.NODE_ENV !== 'production') return 'access-secret-key-change-in-production';
   throw new Error('JWT_ACCESS_SECRET is required in production');
 };
 
-const getRefreshSecret = (): string => {
+const getRefreshSecret = () => {
   if (JWT_REFRESH_SECRET) return JWT_REFRESH_SECRET;
-  if (process.env.NODE_ENV !== 'production') {
-    if (!devRefreshFallback) {
-      devRefreshFallback = generateDevFallback();
-    }
-    return devRefreshFallback;
-  }
+  if (process.env.NODE_ENV !== 'production') return 'refresh-secret-key-change-in-production';
   throw new Error('JWT_REFRESH_SECRET is required in production');
 };
 
-// ==================== TOKEN BLACKLIST ====================
+// In production, use Redis for token blacklist with TTL
+const tokenBlacklist = new Map<string, number>();
 
-// TokenBlacklist interface for consistent API between Redis and in-memory
-interface TokenBlacklist {
-  add(token: string, expiresAt: number): Promise<void>;
-  has(token: string): Promise<boolean>;
-  cleanup?(): Promise<void>;
-}
-
-// In-memory blacklist for development
-class InMemoryBlacklist implements TokenBlacklist {
-  private store = new Map<string, number>();
-  
-  async add(token: string, expiresAt: number): Promise<void> {
-    this.store.set(token, expiresAt);
-  }
-  
-  async has(token: string): Promise<boolean> {
-    const expiry = this.store.get(token);
-    if (!expiry) return false;
-    if (expiry < Date.now()) {
-      this.store.delete(token);
-      return false;
-    }
-    return true;
-  }
-  
-  async cleanup(): Promise<void> {
-    const now = Date.now();
-    for (const [token, expiry] of this.store.entries()) {
-      if (expiry < now) {
-        this.store.delete(token);
-      }
+// Clean up expired tokens from blacklist every hour
+setInterval(() => {
+  const now = Date.now();
+  for (const [token, expiry] of tokenBlacklist.entries()) {
+    if (expiry < now) {
+      tokenBlacklist.delete(token);
     }
   }
-}
-
-// Redis blacklist for production
-class RedisBlacklist implements TokenBlacklist {
-  private redisClient: any;
-  private prefix = 'token_blacklist:';
-  
-  constructor() {
-    // Dynamically import ioredis to avoid requiring it in development
-    const Redis = require('ioredis');
-    this.redisClient = new Redis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-      password: process.env.REDIS_PASSWORD || undefined,
-      retryStrategy: (times: number) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
-      },
-      maxRetriesPerRequest: 3,
-    });
-    
-    this.redisClient.on('error', (err: Error) => {
-      console.error('Redis connection error:', err.message);
-    });
-    
-    this.redisClient.on('connect', () => {
-      console.log('Connected to Redis for token blacklist');
-    });
-  }
-  
-  async add(token: string, expiresAt: number): Promise<void> {
-    const ttl = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
-    if (ttl > 0) {
-      try {
-        await this.redisClient.set(
-          `${this.prefix}${token}`,
-          '1',
-          'EX',
-          ttl
-        );
-      } catch (error) {
-        console.error('Redis error adding token to blacklist:', error);
-      }
-    }
-  }
-  
-  async has(token: string): Promise<boolean> {
-    try {
-      const exists = await this.redisClient.exists(`${this.prefix}${token}`);
-      return exists === 1;
-    } catch (error) {
-      console.error('Redis error checking token blacklist:', error);
-      return false;
-    }
-  }
-}
-
-// Initialize the appropriate blacklist based on environment
-let tokenBlacklist: TokenBlacklist;
-
-const initializeBlacklist = (): TokenBlacklist => {
-  const useRedis = process.env.NODE_ENV === 'production' || process.env.USE_REDIS_BLACKLIST === 'true';
-  
-  if (useRedis) {
-    try {
-      // Check if Redis URL or host is configured
-      if (process.env.REDIS_URL || process.env.REDIS_HOST) {
-        console.log('Initializing Redis token blacklist');
-        return new RedisBlacklist();
-      } else {
-        console.warn('Redis not configured, falling back to in-memory token blacklist');
-        return new InMemoryBlacklist();
-      }
-    } catch (error) {
-      console.warn('Failed to initialize Redis blacklist, falling back to in-memory:', error);
-      return new InMemoryBlacklist();
-    }
-  }
-  
-  console.log('Using in-memory token blacklist for development');
-  const inMemoryBlacklist = new InMemoryBlacklist();
-  
-  // Clean up expired tokens from in-memory blacklist every hour
-  setInterval(() => {
-    inMemoryBlacklist.cleanup().catch(console.error);
-  }, 3600000);
-  
-  return inMemoryBlacklist;
-};
-
-tokenBlacklist = initializeBlacklist();
-
-// ==================== TOKEN FUNCTIONS ====================
+}, 3600000);
 
 const generateAccessToken = (userId: string, rememberMe: boolean = false): string => {
   return jwt.sign(
@@ -284,6 +147,9 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
 
     setRefreshTokenCookie(res, refreshToken, false);
 
+    // LOG THE ACTIVITY
+    await activityLogger.logSignup(user.id, req);
+
     res.status(201).json({
       message: 'Account created successfully',
       accessToken,
@@ -332,6 +198,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const refreshToken = generateRefreshToken(user.id, rememberMe);
 
     setRefreshTokenCookie(res, refreshToken, rememberMe);
+
+    // LOG THE ACTIVITY
+    await activityLogger.logLogin(user.id, req);
 
     res.json({
       message: 'Login successful',
@@ -391,6 +260,9 @@ export const googleSignIn = async (req: Request, res: Response): Promise<void> =
 
       console.log('User logged in via Google:', user.email);
 
+      // LOG THE ACTIVITY
+      await activityLogger.logGoogleSignIn(user.id, false, req);
+
       res.json({
         message: 'Signed in with Google successfully',
         accessToken,
@@ -426,6 +298,9 @@ export const googleSignIn = async (req: Request, res: Response): Promise<void> =
     setRefreshTokenCookie(res, refreshToken, rememberMe);
 
     console.log('New user created via Google:', newUser.email);
+
+    // LOG THE ACTIVITY
+    await activityLogger.logGoogleSignIn(newUser.id, true, req);
 
     res.status(201).json({
       message: 'Account created with Google successfully',
@@ -470,6 +345,9 @@ export const linkGoogleAccount = async (req: Request, res: Response): Promise<vo
       return;
     }
 
+    // LOG THE ACTIVITY
+    await activityLogger.logUpdate(userId, 'USER', userId, 'Linked Google account', { email }, req);
+
     res.json({
       message: 'Google account linked successfully',
       user: formatUserResponse(user),
@@ -489,8 +367,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       return;
     }
 
-    const isBlacklisted = await tokenBlacklist.has(token);
-    if (isBlacklisted) {
+    if (tokenBlacklist.has(token)) {
       res.status(401).json({ message: 'Refresh token has been revoked' });
       return;
     }
@@ -530,7 +407,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
 
     // Blacklist old refresh token
     if (decoded.exp) {
-      await tokenBlacklist.add(token, decoded.exp * 1000);
+      tokenBlacklist.set(token, decoded.exp * 1000);
     }
 
     setRefreshTokenCookie(res, newRefreshToken, rememberMe);
@@ -551,13 +428,14 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     const authHeader = req.headers.authorization;
     const accessToken = authHeader?.split(' ')[1];
     const refreshTokenCookie = req.cookies.refreshToken;
+    const userId = (req as any).userId;
 
     // Blacklist access token
     if (accessToken) {
       try {
         const decoded = jwt.decode(accessToken) as { exp?: number };
         if (decoded?.exp) {
-          await tokenBlacklist.add(accessToken, decoded.exp * 1000);
+          tokenBlacklist.set(accessToken, decoded.exp * 1000);
         }
       } catch (error) {
         console.error('Error decoding access token:', error);
@@ -569,7 +447,7 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
       try {
         const decoded = jwt.decode(refreshTokenCookie) as { exp?: number };
         if (decoded?.exp) {
-          await tokenBlacklist.add(refreshTokenCookie, decoded.exp * 1000);
+          tokenBlacklist.set(refreshTokenCookie, decoded.exp * 1000);
         }
       } catch (error) {
         console.error('Error decoding refresh token:', error);
@@ -580,6 +458,11 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     res.clearCookie('refreshToken', {
       path: '/api/auth'
     });
+
+    // LOG THE ACTIVITY
+    if (userId) {
+      await activityLogger.logLogout(userId, req);
+    }
 
     res.json({
       message: 'Logged out successfully'
@@ -600,8 +483,7 @@ export const verifyToken = async (req: Request, res: Response): Promise<void> =>
       return;
     }
 
-    const isBlacklisted = await tokenBlacklist.has(token);
-    if (isBlacklisted) {
+    if (tokenBlacklist.has(token)) {
       res.status(401).json({ message: 'Token has been revoked' });
       return;
     }
@@ -704,6 +586,9 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
       data: { password: hashedPassword },
     });
 
+    // LOG THE ACTIVITY
+    await activityLogger.logPasswordChange(userId, req);
+
     res.json({ message: 'Password changed successfully' });
   } catch (error) {
     console.error('Change password error:', error);
@@ -749,6 +634,9 @@ export const updateProfile = async (req: Request, res: Response): Promise<void> 
         restaurants: true
       }
     });
+
+    // LOG THE ACTIVITY
+    await activityLogger.logUpdate(userId, 'USER', userId, `Profile updated`, { name, email }, req);
 
     res.json({
       message: 'Profile updated successfully',
