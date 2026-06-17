@@ -1,6 +1,7 @@
+//frontend/app/dashboard/settings/SettingsTab.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Loader2, Save, X, CheckCircle } from "lucide-react";
 import "./settings.css";
 
@@ -28,24 +29,27 @@ export default function SettingsTab({
   const [hasChanges, setHasChanges] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  // Get original values from user
+  const originalName = user?.restaurant?.name || "";
+  const originalDescription = user?.restaurant?.description || "";
+  const originalPhone = user?.restaurant?.phone || "";
+  const originalAddress = user?.restaurant?.address || "";
+
   // Load initial values whenever user data changes
   useEffect(() => {
-    setName(user.restaurant?.name || "");
-    setDescription(user.restaurant?.description || "");
-    setPhone(user.restaurant?.phone || "");
-    setAddress(user.restaurant?.address || "");
-    setEmail(user.restaurant?.email || user.email || "");
+    setName(originalName);
+    setDescription(originalDescription);
+    setPhone(originalPhone);
+    setAddress(originalAddress);
+    setEmail(user?.restaurant?.email || user?.email || "");
     setHasChanges(false);
     setSavedSuccess(false);
-  }, [user]);
+  }, [originalName, originalDescription, originalPhone, originalAddress, user?.restaurant?.email, user?.email]);
 
-  // Track changes (only description, phone, address are editable)
+  // Track changes
   useEffect(() => {
-    const originalDescription = user.restaurant?.description || "";
-    const originalPhone = user.restaurant?.phone || "";
-    const originalAddress = user.restaurant?.address || "";
-    
     const changed = 
+      name !== originalName ||
       description !== originalDescription ||
       phone !== originalPhone ||
       address !== originalAddress;
@@ -55,7 +59,7 @@ export default function SettingsTab({
     if (changed) {
       setSavedSuccess(false);
     }
-  }, [description, phone, address, user]);
+  }, [name, description, phone, address, originalName, originalDescription, originalPhone, originalAddress]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -75,6 +79,7 @@ export default function SettingsTab({
           "Authorization": `Bearer ${token}`,
         },
         body: JSON.stringify({
+          name: name.trim(),
           description: description.trim(),
           phone: phone.trim(),
           address: address.trim(),
@@ -86,6 +91,7 @@ export default function SettingsTab({
         
         // Update user object directly so changes reflect immediately
         if (user.restaurant) {
+          user.restaurant.name = data.restaurant.name;
           user.restaurant.description = data.restaurant.description;
           user.restaurant.phone = data.restaurant.phone;
           user.restaurant.address = data.restaurant.address;
@@ -111,9 +117,10 @@ export default function SettingsTab({
   };
 
   const handleDiscard = () => {
-    setDescription(user.restaurant?.description || "");
-    setPhone(user.restaurant?.phone || "");
-    setAddress(user.restaurant?.address || "");
+    setName(originalName);
+    setDescription(originalDescription);
+    setPhone(originalPhone);
+    setAddress(originalAddress);
     setHasChanges(false);
     setSavedSuccess(false);
     addToast("info", "Changes discarded");
@@ -147,11 +154,9 @@ export default function SettingsTab({
           <input
             type="text"
             value={name}
-            className="dash-form-input dash-form-input-disabled"
-            disabled
-            readOnly
+            onChange={(e) => setName(e.target.value)}
+            className="dash-form-input"
           />
-          <span className="dash-settings-hint">Restaurant name cannot be changed</span>
         </div>
 
         <div className="dash-form-group">

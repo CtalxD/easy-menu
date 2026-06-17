@@ -1,29 +1,96 @@
+//frontend/app/dashboard/schedules/SchedulesTab.tsx
 "use client";
 
-import { Plus, Trash2, Clock3, Crown, ArrowRight, Loader2 } from "lucide-react";
+import { Plus, Trash2, Clock3, Crown, ArrowRight, Loader2, CheckCircle, XCircle, Star } from "lucide-react";
+import { useEffect, useRef } from "react";
 import "./schedules.css";
 
+interface Schedule {
+  id: string;
+  name: string;
+  description: string | null;
+  scheduledAt: string;
+  appliedAt: string | null;
+  status: string;
+  action: string;
+  payload: string;
+  createdAt: string;
+}
+
+interface MenuItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  categoryId: string | null;
+  status: string;
+  popular: boolean;
+  image: string | null;
+  category: { id: string; name: string } | null;
+  locationId: string | null;
+}
+
 interface SchedulesTabProps {
-  schedules: any[];
+  schedules: Schedule[];
+  menuItems: MenuItem[];
   isProOrAbove: boolean;
   savingSchedule: boolean;
   navigateToMembership: () => void;
   openAddSchedule: () => void;
   handleDeleteSchedule: (id: string) => void;
+  refreshAllData?: () => Promise<void>;
 }
 
 export default function SchedulesTab({
   schedules,
+  menuItems,
   isProOrAbove,
   savingSchedule,
   navigateToMembership,
   openAddSchedule,
   handleDeleteSchedule,
+  refreshAllData,
 }: SchedulesTabProps) {
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-refresh schedules every 30 seconds to show updated statuses
+  useEffect(() => {
+    if (!isProOrAbove) return;
+
+    intervalRef.current = setInterval(() => {
+      if (refreshAllData) {
+        refreshAllData();
+      }
+    }, 30000);
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isProOrAbove, refreshAllData]);
+
   const formatDateTime = (dateString: string) => {
     return new Date(dateString).toLocaleString('en-US', {
       year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
     });
+  };
+
+  const formatAppliedDateTime = (dateString: string) => {
+    if (!dateString) return '';
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+  };
+
+  const getActionLabel = (action: string) => {
+    switch (action) {
+      case 'TOGGLE_ITEM_STATUS': return 'Toggle Status';
+      case 'UPDATE_ITEM_PRICE': return 'Update Price';
+      case 'TOGGLE_ITEM_POPULAR': return 'Toggle Popular';
+      case 'BULK_UPDATE': return 'Bulk Update';
+      default: return action;
+    }
   };
 
   if (!isProOrAbove) {
@@ -55,19 +122,53 @@ export default function SchedulesTab({
 
       <div className="dash-table-wrap">
         <table className="dash-table">
-          <thead><tr><th>Name</th><th>Action</th><th>When</th><th>Status</th><th></th></tr></thead>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Action</th>
+              <th>Scheduled For</th>
+              <th>Status</th>
+              <th>Applied At</th>
+              <th></th>
+            </tr>
+          </thead>
           <tbody>
-            {schedules.map((sched: any) => (
-              <tr key={sched.id}>
-                <td><div className="dash-item-name-cell">{sched.name}</div></td>
-                <td><span className="dash-status available">{sched.action}</span></td>
-                <td>{formatDateTime(sched.scheduledAt)}</td>
-                <td><span className={`dash-status ${sched.status === 'pending' ? 'available' : 'sold_out'}`}>{sched.status}</span></td>
-                <td><button className="dash-icon-btn dash-delete-btn" onClick={() => handleDeleteSchedule(sched.id)} type="button"><Trash2 size={14} /></button></td>
-              </tr>
-            ))}
+            {schedules.map((sched) => {
+              let payload: any = {};
+              try {
+                payload = JSON.parse(sched.payload);
+              } catch (e) {}
+
+              const scheduledItem = menuItems.find((item) => item.id === payload.itemId);
+
+              return (
+                <tr key={sched.id}>
+                  <td>
+                    <div className="dash-item-name-cell">
+                      <strong>{sched.name}</strong>
+                      {scheduledItem && <span className="text-muted">{scheduledItem.name}</span>}
+                    </div>
+                  </td>
+                  <td><span className="dash-status available">{getActionLabel(sched.action)}</span></td>
+                  <td>{formatDateTime(sched.scheduledAt)}</td>
+                  <td>
+                    <span className={`dash-status ${sched.status === 'pending' ? 'available' : 'sold_out'}`}>
+                      {sched.status === 'pending' ? 'Pending' : 'Applied'}
+                    </span>
+                  </td>
+                  <td>{sched.appliedAt ? formatAppliedDateTime(sched.appliedAt) : '-'}</td>
+                  <td>
+                    {sched.status === 'pending' && (
+                      <button className="dash-icon-btn dash-delete-btn" onClick={() => handleDeleteSchedule(sched.id)} type="button">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
             {schedules.length === 0 && (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '40px', color: 'var(--ink-muted)' }}>No schedules yet.</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px', color: 'var(--ink-muted)' }}>No schedules yet.</td></tr>
             )}
           </tbody>
         </table>

@@ -11,12 +11,7 @@ export const createScheduleSchema = z.object({
   action: z.enum(['TOGGLE_ITEM_STATUS', 'UPDATE_ITEM_PRICE', 'TOGGLE_ITEM_POPULAR', 'BULK_UPDATE'], {
     message: 'Invalid action type',
   }),
-  payload: z.any().refine((val) => {
-    try {
-      JSON.stringify(val);
-      return true;
-    } catch {
-      return false;
-    }
-  }, 'Payload must be valid JSON'),
+  payload: z.any().optional(),
+  itemId: z.string().uuid('Invalid item ID').optional(),
+  newPrice: z.number().min(0, 'Price cannot be negative').max(999999.99, 'Price is too high').optional(),
 });

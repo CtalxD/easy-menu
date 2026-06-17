@@ -1,3 +1,4 @@
+//frontend/app/dashboard/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -662,7 +663,7 @@ function DashboardContent({ user, onLogout, upgraded }: { user: any; onLogout: (
     
     let payload: any = { itemId: scheduleFormItemId };
     if (scheduleFormAction === 'UPDATE_ITEM_PRICE') {
-      payload.price = parseFloat(scheduleFormNewPrice);
+      payload.newPrice = parseFloat(scheduleFormNewPrice);
     }
     
     setSavingSchedule(true);
