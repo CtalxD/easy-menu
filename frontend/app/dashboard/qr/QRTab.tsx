@@ -1,3 +1,4 @@
+//frontend/app/dashboard/qr/QRTab.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";

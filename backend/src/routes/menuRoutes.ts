@@ -3,6 +3,7 @@ import { Router } from 'express';
 import { authenticateToken } from '../middleware/auth';
 import { checkItemLimit, checkCategoryLimit } from '../middleware/membership';
 import { validate } from '../middleware/validate';
+import multer from 'multer';
 import {
   upgradePlanSchema,
   createCategoriesBulkSchema,
@@ -42,41 +43,62 @@ import { getAnalytics, exportAnalyticsCSV } from '../controllers/analyticsContro
 import { getLocations, createLocation, updateLocation, deleteLocation } from '../controllers/locationController';
 import { getSchedules, createSchedule, deleteSchedule } from '../controllers/scheduleController';
 import { getSubscriptionStatus } from '../controllers/adminController';
+import { uploadMenuItemImage } from '../controllers/uploadController';
+
+// Configure multer for memory storage
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  }
+});
 
 const router = Router();
 
+// All routes require authentication
 router.use(authenticateToken);
 
-// Plan routes
+// ==================== PLAN ROUTES ====================
 router.get('/plan/info', getPlanInfo);
 router.post('/plan/upgrade', validate(upgradePlanSchema), upgradePlan);
 
-// Subscription status
+// ==================== SUBSCRIPTION ROUTES ====================
 router.get('/subscription/status', getSubscriptionStatus);
 
-// Settings route
+// ==================== SETTINGS ROUTES ====================
 router.put('/settings', validate(updateSettingsSchema), updateSettings);
 
-// Analytics routes
+// ==================== ANALYTICS ROUTES ====================
 router.get('/analytics', getAnalytics);
 router.get('/analytics/export', exportAnalyticsCSV);
 
-// QR routes
+// ==================== QR ROUTES ====================
 router.get('/qr/generate', generateQRCode);
 router.post('/qr/generate-custom', validate(generateCustomQRSchema), generateCustomQRCode);
+router.post('/qr/save-settings', validate(saveQRSettingsSchema), saveQRSettings);
+router.get('/qr/get-settings', getQRSettings);
 
-// Location routes (PRO and above)
+// ==================== IMAGE UPLOAD ROUTE ====================
+// CRITICAL: This MUST be defined BEFORE any /:id parameterized routes
+router.post('/upload-image', upload.single('image'), uploadMenuItemImage);
+
+// ==================== LOCATION ROUTES ====================
 router.get('/locations', getLocations);
 router.post('/locations', validate(createLocationSchema), createLocation);
 router.put('/locations/:locationId', validate(updateLocationSchema), updateLocation);
 router.delete('/locations/:locationId', deleteLocation);
 
-// Schedule routes (PRO and above)
+// ==================== SCHEDULE ROUTES ====================
 router.get('/schedules', getSchedules);
 router.post('/schedules', validate(createScheduleSchema), createSchedule);
 router.delete('/schedules/:scheduleId', deleteSchedule);
 
-// Category routes
+// ==================== CATEGORY ROUTES ====================
 router.get('/categories/default', getDefaultCategories);
 router.post('/categories/bulk', checkCategoryLimit, validate(createCategoriesBulkSchema), createCategoriesBulk);
 router.get('/categories', getCategories);
@@ -84,7 +106,7 @@ router.post('/categories', checkCategoryLimit, validate(createCategorySchema), c
 router.put('/categories/:categoryId', validate(updateCategorySchema), updateCategory);
 router.delete('/categories/:categoryId', deleteCategory);
 
-// Menu item routes
+// ==================== MENU ITEM ROUTES (/:id routes must be LAST) ====================
 router.get('/', getMenuItems);
 router.post('/', checkItemLimit, validate(createMenuItemSchema), createMenuItem);
 router.get('/:id', getMenuItem);
@@ -92,8 +114,5 @@ router.put('/:id', validate(updateMenuItemSchema), updateMenuItem);
 router.delete('/:id', deleteMenuItem);
 router.patch('/:id/toggle-status', toggleMenuItemStatus);
 router.patch('/:id/toggle-popular', togglePopular);
-
-router.post('/qr/save-settings', validate(saveQRSettingsSchema), saveQRSettings);
-router.get('/qr/get-settings', getQRSettings);
 
 export default router;

@@ -1,3 +1,4 @@
+// frontend/app/menu/[restaurantId]/page.tsx
 "use client";
 
 import { useEffect, useState, useRef, useCallback } from "react";
@@ -28,6 +29,8 @@ import {
   Award,
   ChevronLeft,
   ChevronRight,
+  Eye,
+  X,
 } from "lucide-react";
 import "./menu.css";
 
@@ -113,6 +116,16 @@ const getCategoryIcon = (name: string): React.ReactNode => {
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 /* ===================================================================
+   HELPER: Get full image URL
+   =================================================================== */
+
+const getImageUrl = (imagePath: string | null): string | null => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith("http")) return imagePath;
+  return `${API_URL}${imagePath}`;
+};
+
+/* ===================================================================
    MAIN COMPONENT
    =================================================================== */
 
@@ -134,6 +147,7 @@ export default function PublicMenuPage() {
   );
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<{ url: string; name: string } | null>(null);
   const navContainerRef = useRef<HTMLDivElement>(null);
   const navWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -152,6 +166,18 @@ export default function PublicMenuPage() {
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  // Lock body scroll when modal is open
+  useEffect(() => {
+    if (selectedImage) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [selectedImage]);
 
   useEffect(() => {
     const fetchMenu = async () => {
@@ -225,6 +251,14 @@ export default function PublicMenuPage() {
         behavior: "smooth",
       });
     }
+  };
+
+  const openImageModal = (imageUrl: string, name: string) => {
+    setSelectedImage({ url: imageUrl, name });
+  };
+
+  const closeImageModal = () => {
+    setSelectedImage(null);
   };
 
   const sortCategoryItems = (items: MenuItem[]): MenuItem[] => {
@@ -485,11 +519,26 @@ export default function PublicMenuPage() {
                             </span>
                           </div>
                           
-                          {item.description && (
-                            <div className="menu-item-desc-row">
+                          <div className="menu-item-desc-row">
+                            {item.description && (
                               <p className="menu-item-desc">{item.description}</p>
-                            </div>
-                          )}
+                            )}
+                            {item.image && (
+                              <button
+                                className="menu-item-view-btn"
+                                onClick={() => {
+                                  const fullUrl = getImageUrl(item.image);
+                                  if (fullUrl) {
+                                    openImageModal(fullUrl, item.name);
+                                  }
+                                }}
+                                title={`View ${item.name}`}
+                              >
+                                <Eye size={12} strokeWidth={1.5} />
+                                <span>View Image</span>
+                              </button>
+                            )}
+                          </div>
                           
                           {item.popular && (
                             <div className="menu-item-tags">
@@ -544,6 +593,28 @@ export default function PublicMenuPage() {
           </footer>
         </div>
       </div>
+
+      {/* Image Modal Overlay */}
+      {selectedImage && (
+        <div className="menu-modal-overlay" onClick={closeImageModal}>
+          <div className="menu-modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="menu-modal-header">
+              <h3 className="menu-modal-title">{selectedImage.name}</h3>
+              <button className="menu-modal-close" onClick={closeImageModal}>
+                <X size={20} strokeWidth={1.5} />
+              </button>
+            </div>
+            <div className="menu-modal-image-wrapper">
+              <img 
+                src={selectedImage.url} 
+                alt={selectedImage.name} 
+                className="menu-modal-image"
+                loading="lazy"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Scroll to Top Button */}
       <button 

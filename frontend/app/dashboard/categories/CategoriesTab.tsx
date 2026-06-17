@@ -1,3 +1,4 @@
+//frontend/app/dashboard/categories/CategoriesTab.tsx
 "use client";
 
 import { Plus, Edit3, Trash2, Zap, LayoutDashboard, Loader2, Trash } from "lucide-react";

@@ -1,3 +1,4 @@
+//frontend/app/dashboard/locations/LocationsTab.tsx
 "use client";
 
 import { Plus, Edit3, Trash2, MapPin, Crown, ArrowRight, Loader2 } from "lucide-react";

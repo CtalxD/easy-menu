@@ -394,3 +394,180 @@ button:focus:not(:focus-visible) { outline: none; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms; animation-iteration-count: 1; transition-duration: 0.01ms; }
 }
+
+/* ===================================================================
+   10. IMAGE UPLOAD
+   =================================================================== */
+
+.dash-image-upload-container {
+  border: 2px dashed var(--sand-mid);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: all var(--transition);
+  background: var(--cream);
+}
+
+.dash-image-upload-container:hover {
+  border-color: var(--sand-dark);
+  background: var(--white);
+}
+
+/* Upload Placeholder (no image selected) */
+.dash-image-upload-placeholder {
+  position: relative;
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dash-image-upload-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.dash-image-upload-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 32px 20px;
+  text-align: center;
+  color: var(--ink-muted);
+  cursor: pointer;
+  transition: all var(--transition);
+  z-index: 1;
+  width: 100%;
+}
+
+.dash-image-upload-label svg {
+  color: var(--sand-dark);
+  transition: all var(--transition);
+}
+
+.dash-image-upload-placeholder:hover .dash-image-upload-label svg {
+  color: var(--terra);
+  transform: translateY(-2px);
+}
+
+.dash-image-upload-label span {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-muted);
+  transition: all var(--transition);
+}
+
+.dash-image-upload-placeholder:hover .dash-image-upload-label span {
+  color: var(--ink);
+}
+
+.dash-image-upload-hint {
+  font-size: 11px !important;
+  font-weight: 400 !important;
+  color: var(--ink-muted) !important;
+  opacity: 0.6;
+}
+
+/* Image Preview (after image selected/uploaded) */
+.dash-image-preview {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 140px;
+  background: var(--ink-soft);
+  overflow: hidden;
+}
+
+.dash-image-preview-img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  display: block;
+}
+
+.dash-image-remove-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--sand-mid);
+  border-radius: var(--radius-sm);
+  color: var(--red);
+  cursor: pointer;
+  transition: all var(--transition);
+  padding: 0;
+  backdrop-filter: blur(4px);
+  z-index: 5;
+}
+
+.dash-image-remove-btn:hover {
+  background: var(--red);
+  color: var(--white);
+  border-color: var(--red);
+  box-shadow: 0 2px 8px rgba(229, 57, 53, 0.3);
+}
+
+/* Item image thumbnail in table/cards */
+.dash-item-image-thumb {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  border: 1px solid var(--sand-mid);
+  flex-shrink: 0;
+  background: var(--cream);
+}
+
+.dash-item-image-thumb-placeholder {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-sm);
+  background: var(--cream);
+  border: 1px solid var(--sand-mid);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sand-dark);
+  flex-shrink: 0;
+}
+
+/* Item image in menu tab card view */
+.dash-menu-card-image {
+  width: 100%;
+  height: 160px;
+  object-fit: cover;
+  border-bottom: 1px solid var(--sand-mid);
+  background: var(--cream);
+}
+
+@media (min-width: 480px) {
+  .dash-menu-card-image {
+    height: 180px;
+  }
+}
+
+.dash-menu-card-image-placeholder {
+  width: 100%;
+  height: 160px;
+  background: var(--cream);
+  border-bottom: 1px solid var(--sand-mid);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sand-dark);
+}
+
+@media (min-width: 480px) {
+  .dash-menu-card-image-placeholder {
+    height: 180px;
+  }
+}

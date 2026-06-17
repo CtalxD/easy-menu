@@ -1,3 +1,4 @@
+//frontend/app/dashboard/menu/MenuTab.tsx
 "use client";
 
 import { Plus, Edit3, Star, Trash2, Camera, CheckCircle, XCircle, Package, Loader2, Trash } from "lucide-react";

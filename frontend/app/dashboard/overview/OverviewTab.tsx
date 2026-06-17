@@ -1,3 +1,4 @@
+//frontend/app/dashboard/overview/OverviewTab.tsx
 "use client";
 
 import { Utensils, LayoutDashboard, MapPin, Crown, ArrowRight, Edit3, Calendar, Clock, CreditCard, BadgeCheck, AlertCircle, Package } from "lucide-react";

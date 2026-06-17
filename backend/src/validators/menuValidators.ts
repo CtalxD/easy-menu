@@ -26,6 +26,7 @@ export const createMenuItemSchema = z.object({
   }).optional().default('available'),
   popular: z.boolean().optional().default(false),
   locationId: z.string().uuid('Invalid location ID').nullable().optional(),
+  image: z.string().url('Invalid image URL').nullable().optional(),
 });
 
 export const updateMenuItemSchema = z.object({
@@ -38,6 +39,7 @@ export const updateMenuItemSchema = z.object({
   }).optional(),
   popular: z.boolean().optional(),
   locationId: z.string().uuid('Invalid location ID').nullable().optional(),
+  image: z.string().url('Invalid image URL').nullable().optional(),
 });
 
 export const createCategorySchema = z.object({

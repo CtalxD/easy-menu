@@ -1,3 +1,4 @@
+//frontend/app/dashboard/analytics/AnalyticsTab.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";

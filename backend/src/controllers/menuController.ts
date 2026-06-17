@@ -529,7 +529,7 @@ export const createMenuItem = async (req: Request, res: Response): Promise<void>
   try {
     const userId = (req as any).userId;
     // Data is already validated by Zod middleware
-    const { name, description, price, categoryId, status, popular, locationId } = req.body;
+    const { name, description, price, categoryId, status, popular, locationId, image } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -551,6 +551,7 @@ export const createMenuItem = async (req: Request, res: Response): Promise<void>
         popular,
         restaurantId: user.restaurants[0].id,
         locationId: locationId || null,
+        image: image || null,
       },
       include: { category: true },
     });
@@ -567,7 +568,7 @@ export const updateMenuItem = async (req: Request, res: Response): Promise<void>
     const id = req.params.id as string;
     const userId = (req as any).userId;
     // Data is already validated by Zod middleware
-    const { name, description, price, categoryId, status, popular, locationId } = req.body;
+    const { name, description, price, categoryId, status, popular, locationId, image } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -596,6 +597,7 @@ export const updateMenuItem = async (req: Request, res: Response): Promise<void>
     if (status !== undefined) updateData.status = status;
     if (popular !== undefined) updateData.popular = popular;
     if (locationId !== undefined) updateData.locationId = locationId || null;
+    if (image !== undefined) updateData.image = image;
 
     const menuItem = await prisma.menuItem.update({
       where: { id },

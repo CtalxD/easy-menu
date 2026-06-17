@@ -1,4 +1,3 @@
-//frontend/app/dashboard/page.tsx
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -8,7 +7,7 @@ import { useAuth } from "../contexts/AuthContext";
 import {
   QrCode, LayoutDashboard, Utensils, Settings, LogOut, Plus, Search,
   Menu, X, Loader2, RefreshCw, Crown, AlertCircle, Clock, BadgeCheck,
-  BarChart3, MapPin, Clock3, ArrowRight, CheckCircle, Info,
+  BarChart3, MapPin, Clock3, ArrowRight, CheckCircle, Info, Camera,
 } from "lucide-react";
 import OverviewTab from "./overview/OverviewTab";
 import MenuTab from "./menu/MenuTab";
@@ -227,6 +226,11 @@ function DashboardContent({ user, onLogout, upgraded }: { user: any; onLogout: (
   const [formError, setFormError] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Image Upload State
+  const [itemImageFile, setItemImageFile] = useState<File | null>(null);
+  const [itemImagePreview, setItemImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
   // Category Modal State
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -370,6 +374,70 @@ function DashboardContent({ user, onLogout, upgraded }: { user: any; onLogout: (
   }, [fetchMenuItems, fetchCategories, fetchPlanInfo, fetchDefaultCategories]);
 
   /* ===================================================================
+     IMAGE UPLOAD HANDLER
+     ---------------------------------------------------------------
+     Uploads the selected file to /api/menu/upload-image and returns
+     the Cloudinary URL.  itemId is optional — for NEW items it will
+     be an empty string and the backend will skip the ownership check.
+     =================================================================== */
+
+  const handleImageUpload = useCallback(async (itemId: string = ''): Promise<string | null> => {
+    if (!itemImageFile) return null;
+
+    setUploadingImage(true);
+    try {
+      const token = getAccessToken();
+      if (!token) {
+        addToast("error", "Session expired — please log in again.");
+        return null;
+      }
+
+      const formData = new FormData();
+      // Field name MUST match what multer expects: upload.single('image')
+      formData.append('image', itemImageFile);
+      // Only append itemId when it is a real, non-empty UUID
+      if (itemId && itemId.trim() !== '') {
+        formData.append('itemId', itemId);
+      }
+
+      console.log('Uploading image to:', `${API_URL}/api/menu/upload-image`);
+      console.log('File name:', itemImageFile.name, '| size:', itemImageFile.size, 'bytes');
+
+      const response = await fetch(`${API_URL}/api/menu/upload-image`, {
+        method: 'POST',
+        headers: {
+          // Do NOT set Content-Type here — the browser sets it automatically
+          // including the multipart boundary when body is FormData.
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Upload successful, URL:', data.imageUrl);
+        addToast("success", "Image uploaded successfully!");
+        return data.imageUrl as string;
+      } else {
+        let errorMessage = "Image upload failed";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorMessage;
+        } catch { /* response wasn't JSON */ }
+        console.error("Upload failed with status:", response.status, errorMessage);
+        addToast("error", errorMessage);
+        return null;
+      }
+    } catch (error) {
+      console.error("Image upload network error:", error);
+      addToast("error", "Image upload failed — check your connection.");
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  }, [itemImageFile, getAccessToken, addToast]);
+
+  /* ===================================================================
      ITEM HANDLERS
      =================================================================== */
 
@@ -385,14 +453,48 @@ function DashboardContent({ user, onLogout, upgraded }: { user: any; onLogout: (
     try {
       const token = getAccessToken();
       if (!token) { setFormError("Please login again"); return; }
+
+      // Step 1 — upload the image first (before the item even exists for new items).
+      // For new items we pass '' as itemId; the backend skips the ownership check
+      // when itemId is absent/empty, so this is safe.
+      let imageUrl: string | null = editingItem?.image ?? null;
+      if (itemImagePreview && itemImageFile) {
+        // There's a new file selected — upload it
+        const uploadedUrl = await handleImageUpload(editingItem?.id ?? '');
+        if (uploadedUrl) {
+          imageUrl = uploadedUrl;
+        } else {
+          // Upload failed — toast was already shown inside handleImageUpload
+          setSaving(false);
+          return;
+        }
+      } else if (!itemImagePreview && editingItem?.image) {
+        // User explicitly removed the image
+        imageUrl = null;
+      }
+
+      // Step 2 — create or update the menu item with the resolved imageUrl
       const url = editingItem ? `${API_URL}/api/menu/${editingItem.id}` : `${API_URL}/api/menu`;
       const method = editingItem ? "PUT" : "POST";
       const response = await fetch(url, {
-        method, headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ name: formName.trim(), description: formDescription.trim(), price: parseFloat(formPrice), categoryId: formCategoryId || null, status: formStatus, popular: formPopular, locationId: formLocationId || null }),
+        method,
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({
+          name: formName.trim(),
+          description: formDescription.trim(),
+          price: parseFloat(formPrice),
+          categoryId: formCategoryId || null,
+          status: formStatus,
+          popular: formPopular,
+          locationId: formLocationId || null,
+          image: imageUrl,
+        }),
       });
+
       if (response.ok) {
         setShowAddModal(false);
+        setItemImageFile(null);
+        setItemImagePreview(null);
         addToast("success", editingItem ? "Item updated successfully!" : "Item added successfully!");
         await refreshAllData();
       } else if (response.status === 403) {
@@ -472,16 +574,34 @@ function DashboardContent({ user, onLogout, upgraded }: { user: any; onLogout: (
     if (menuItems.length >= planInfo.itemLimit) {
       addToast("error", "Item limit reached.", { label: "Upgrade", href: "/membership" }); return;
     }
-    setEditingItem(null); setFormName(""); setFormDescription(""); setFormPrice("");
-    setFormCategoryId(selectedCategory !== "all" ? selectedCategory : ""); setFormStatus("available");
-    setFormPopular(false); setFormLocationId(""); setFormError(""); setShowAddModal(true);
+    setEditingItem(null);
+    setFormName("");
+    setFormDescription("");
+    setFormPrice("");
+    setFormCategoryId(selectedCategory !== "all" ? selectedCategory : "");
+    setFormStatus("available");
+    setFormPopular(false);
+    setFormLocationId("");
+    setFormError("");
+    setItemImageFile(null);
+    setItemImagePreview(null);
+    setShowAddModal(true);
   };
 
   const openEditItem = (item: MenuItem) => {
-    setEditingItem(item); setFormName(item.name); setFormDescription(item.description || "");
-    setFormPrice(item.price.toString()); setFormCategoryId(item.categoryId || "");
-    setFormStatus(item.status); setFormPopular(item.popular); setFormLocationId(item.locationId || "");
-    setFormError(""); setShowAddModal(true);
+    setEditingItem(item);
+    setFormName(item.name);
+    setFormDescription(item.description || "");
+    setFormPrice(item.price.toString());
+    setFormCategoryId(item.categoryId || "");
+    setFormStatus(item.status);
+    setFormPopular(item.popular);
+    setFormLocationId(item.locationId || "");
+    setFormError("");
+    setItemImageFile(null);
+    // Show existing image as preview so the user can see it and optionally replace it
+    setItemImagePreview(item.image || null);
+    setShowAddModal(true);
   };
 
   /* ===================================================================
@@ -660,30 +780,30 @@ function DashboardContent({ user, onLogout, upgraded }: { user: any; onLogout: (
     if (scheduleFormAction === 'UPDATE_ITEM_PRICE' && (!scheduleFormNewPrice || parseFloat(scheduleFormNewPrice) <= 0)) {
       setScheduleFormError("Valid price is required"); return;
     }
-    
+
     let payload: any = { itemId: scheduleFormItemId };
     if (scheduleFormAction === 'UPDATE_ITEM_PRICE') {
       payload.newPrice = parseFloat(scheduleFormNewPrice);
     }
-    
+
     setSavingSchedule(true);
     try {
       const token = getAccessToken(); if (!token) return;
       const response = await fetch(`${API_URL}/api/menu/schedules`, {
-        method: "POST", 
+        method: "POST",
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
-        body: JSON.stringify({ 
-          name: scheduleFormName.trim(), 
-          description: scheduleFormDescription.trim(), 
-          scheduledAt: new Date(scheduleFormScheduledAt).toISOString(), 
-          action: scheduleFormAction, 
+        body: JSON.stringify({
+          name: scheduleFormName.trim(),
+          description: scheduleFormDescription.trim(),
+          scheduledAt: new Date(scheduleFormScheduledAt).toISOString(),
+          action: scheduleFormAction,
           payload: payload
         })
       });
-      if (response.ok) { 
-        setShowScheduleModal(false); 
-        addToast("success", "Schedule created successfully!"); 
-        await fetchSchedules(); 
+      if (response.ok) {
+        setShowScheduleModal(false);
+        addToast("success", "Schedule created successfully!");
+        await fetchSchedules();
       }
       else { setScheduleFormError((await response.json()).message || "Failed to create schedule"); }
     } catch { setScheduleFormError("Network error"); }
@@ -706,10 +826,10 @@ function DashboardContent({ user, onLogout, upgraded }: { user: any; onLogout: (
   };
 
   const openAddSchedule = () => {
-    setScheduleFormName(""); 
-    setScheduleFormDescription(""); 
+    setScheduleFormName("");
+    setScheduleFormDescription("");
     setScheduleFormScheduledAt("");
-    setScheduleFormAction("TOGGLE_ITEM_STATUS"); 
+    setScheduleFormAction("TOGGLE_ITEM_STATUS");
     setScheduleFormItemId("");
     setScheduleFormNewPrice("");
     setScheduleFormError("");
@@ -740,6 +860,14 @@ function DashboardContent({ user, onLogout, upgraded }: { user: any; onLogout: (
 
   useEffect(() => { if (activeTab === "locations") fetchLocations(); }, [activeTab, fetchLocations]);
   useEffect(() => { if (activeTab === "schedules") fetchSchedules(); }, [activeTab, fetchSchedules]);
+
+  useEffect(() => {
+    const handleTabChange = (e: CustomEvent) => {
+      setActiveTab(e.detail);
+    };
+    window.addEventListener('dashboard-tab-change', handleTabChange as EventListener);
+    return () => window.removeEventListener('dashboard-tab-change', handleTabChange as EventListener);
+  }, []);
 
   /* ===================================================================
      COMPUTED VALUES
@@ -794,13 +922,18 @@ function DashboardContent({ user, onLogout, upgraded }: { user: any; onLogout: (
     scheduleFormError, setScheduleFormError, savingSchedule, setSavingSchedule,
     handleSaveSchedule, handleDeleteSchedule, openAddSchedule,
     deletingAll,
+    itemImageFile, setItemImageFile,
+    itemImagePreview, setItemImagePreview,
+    uploadingImage, setUploadingImage,
   };
 
   const bannerData = planInfo.isFree
-    ? { type: (menuItems.length >= planInfo.itemLimit || categories.length >= planInfo.categoryLimit) ? "critical" : "info",
+    ? {
+        type: (menuItems.length >= planInfo.itemLimit || categories.length >= planInfo.categoryLimit) ? "critical" : "info",
         message: menuItems.length >= planInfo.itemLimit
           ? `Item limit reached (${menuItems.length}/${planInfo.itemLimit}).`
-          : `${menuItems.length}/${planInfo.itemLimit} items, ${categories.length}/${planInfo.categoryLimit} categories - Free Plan` }
+          : `${menuItems.length}/${planInfo.itemLimit} items, ${categories.length}/${planInfo.categoryLimit} categories - Free Plan`
+      }
     : null;
 
   /* ===================================================================
@@ -1008,11 +1141,75 @@ function DashboardContent({ user, onLogout, upgraded }: { user: any; onLogout: (
                   </div>
                 </div>
               </div>
+
+              {/* Image Upload Field */}
+              <div className="dash-form-group">
+                <label>Item Image</label>
+                <div className="dash-image-upload-container">
+                  {itemImagePreview ? (
+                    <div className="dash-image-preview">
+                      <img
+                        src={itemImagePreview}
+                        alt="Preview"
+                        className="dash-image-preview-img"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                        }}
+                      />
+                      <button
+                        className="dash-image-remove-btn"
+                        onClick={() => {
+                          setItemImageFile(null);
+                          setItemImagePreview(null);
+                          if (editingItem) {
+                            setEditingItem({ ...editingItem, image: null });
+                          }
+                        }}
+                        type="button"
+                      >
+                        <X size={16} />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="dash-image-upload-placeholder">
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            if (file.size > 5 * 1024 * 1024) {
+                              addToast("error", "Image size must be less than 5MB");
+                              return;
+                            }
+                            setItemImageFile(file);
+                            const reader = new FileReader();
+                            reader.onloadend = () => {
+                              setItemImagePreview(reader.result as string);
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        className="dash-image-upload-input"
+                        id="item-image-upload"
+                      />
+                      <label htmlFor="item-image-upload" className="dash-image-upload-label">
+                        <Camera size={24} />
+                        <span>Click to upload image</span>
+                        <span className="dash-image-upload-hint">JPG, PNG, GIF up to 5MB</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
             <div className="dash-modal-footer">
               <button className="dash-btn-secondary" onClick={() => setShowAddModal(false)} type="button">Cancel</button>
-              <button className="dash-btn-primary" onClick={handleSaveItem} disabled={saving} type="button">
-                {saving ? <><Loader2 size={16} className="spinning" />Saving...</> : <><Plus size={16} />{editingItem ? "Update" : "Add"}</>}
+              <button className="dash-btn-primary" onClick={handleSaveItem} disabled={saving || uploadingImage} type="button">
+                {saving || uploadingImage
+                  ? <><Loader2 size={16} className="spinning" />{uploadingImage ? "Uploading..." : "Saving..."}</>
+                  : <><Plus size={16} />{editingItem ? "Update" : "Add"}</>}
               </button>
             </div>
           </div>
@@ -1100,22 +1297,22 @@ function DashboardContent({ user, onLogout, upgraded }: { user: any; onLogout: (
             </div>
             <div className="dash-modal-body">
               {scheduleFormError && <div className="dash-form-error"><AlertCircle size={16} /><span>{scheduleFormError}</span></div>}
-              
+
               <div className="dash-form-group">
                 <label>Schedule Name *</label>
                 <input type="text" placeholder="e.g., Weekend Switch" value={scheduleFormName} onChange={(e) => setScheduleFormName(e.target.value)} className="dash-form-input" autoFocus />
               </div>
-              
+
               <div className="dash-form-group">
                 <label>Description</label>
                 <input type="text" placeholder="Optional description" value={scheduleFormDescription} onChange={(e) => setScheduleFormDescription(e.target.value)} className="dash-form-input" />
               </div>
-              
+
               <div className="dash-form-group">
                 <label>Date & Time *</label>
                 <input type="datetime-local" value={scheduleFormScheduledAt} onChange={(e) => setScheduleFormScheduledAt(e.target.value)} className="dash-form-input" />
               </div>
-              
+
               <div className="dash-form-group">
                 <label>Action *</label>
                 <select value={scheduleFormAction} onChange={(e) => setScheduleFormAction(e.target.value)} className="dash-form-input">
@@ -1124,12 +1321,12 @@ function DashboardContent({ user, onLogout, upgraded }: { user: any; onLogout: (
                   <option value="UPDATE_ITEM_PRICE">Update Item Price</option>
                 </select>
               </div>
-              
+
               <div className="dash-form-group">
                 <label>Select Item *</label>
-                <select 
-                  value={scheduleFormItemId} 
-                  onChange={(e) => setScheduleFormItemId(e.target.value)} 
+                <select
+                  value={scheduleFormItemId}
+                  onChange={(e) => setScheduleFormItemId(e.target.value)}
                   className="dash-form-input"
                 >
                   <option value="">Choose an item...</option>
@@ -1142,50 +1339,50 @@ function DashboardContent({ user, onLogout, upgraded }: { user: any; onLogout: (
                     ))}
                 </select>
               </div>
-              
+
               {scheduleFormAction === 'UPDATE_ITEM_PRICE' && (
                 <div className="dash-form-group">
                   <label>New Price (NPR) *</label>
-                  <input 
-                    type="number" 
-                    placeholder="0.00" 
-                    value={scheduleFormNewPrice} 
-                    onChange={(e) => setScheduleFormNewPrice(e.target.value)} 
-                    className="dash-form-input" 
-                    min="0" 
-                    step="0.01" 
+                  <input
+                    type="number"
+                    placeholder="0.00"
+                    value={scheduleFormNewPrice}
+                    onChange={(e) => setScheduleFormNewPrice(e.target.value)}
+                    className="dash-form-input"
+                    min="0"
+                    step="0.01"
                   />
                 </div>
               )}
-              
+
               {scheduleFormItemId && scheduleFormAction === 'UPDATE_ITEM_PRICE' && (
                 <div className="dash-schedule-preview">
                   <p className="dash-schedule-preview-label">Preview</p>
                   <p className="dash-schedule-preview-text">
-                    On <strong>{scheduleFormScheduledAt ? new Date(scheduleFormScheduledAt).toLocaleString() : '...'}</strong>, 
-                    the price of <strong>{menuItems.find(i => i.id === scheduleFormItemId)?.name || 'selected item'}</strong> 
+                    On <strong>{scheduleFormScheduledAt ? new Date(scheduleFormScheduledAt).toLocaleString() : '...'}</strong>,
+                    the price of <strong>{menuItems.find(i => i.id === scheduleFormItemId)?.name || 'selected item'}</strong>
                     will be updated to <strong>NPR {scheduleFormNewPrice || '...'}</strong>
                   </p>
                 </div>
               )}
-              
+
               {scheduleFormItemId && scheduleFormAction === 'TOGGLE_ITEM_STATUS' && (
                 <div className="dash-schedule-preview">
                   <p className="dash-schedule-preview-label">Preview</p>
                   <p className="dash-schedule-preview-text">
-                    On <strong>{scheduleFormScheduledAt ? new Date(scheduleFormScheduledAt).toLocaleString() : '...'}</strong>, 
-                    the status of <strong>{menuItems.find(i => i.id === scheduleFormItemId)?.name || 'selected item'}</strong> 
+                    On <strong>{scheduleFormScheduledAt ? new Date(scheduleFormScheduledAt).toLocaleString() : '...'}</strong>,
+                    the status of <strong>{menuItems.find(i => i.id === scheduleFormItemId)?.name || 'selected item'}</strong>
                     will be toggled
                   </p>
                 </div>
               )}
-              
+
               {scheduleFormItemId && scheduleFormAction === 'TOGGLE_ITEM_POPULAR' && (
                 <div className="dash-schedule-preview">
                   <p className="dash-schedule-preview-label">Preview</p>
                   <p className="dash-schedule-preview-text">
-                    On <strong>{scheduleFormScheduledAt ? new Date(scheduleFormScheduledAt).toLocaleString() : '...'}</strong>, 
-                    the popular mark of <strong>{menuItems.find(i => i.id === scheduleFormItemId)?.name || 'selected item'}</strong> 
+                    On <strong>{scheduleFormScheduledAt ? new Date(scheduleFormScheduledAt).toLocaleString() : '...'}</strong>,
+                    the popular mark of <strong>{menuItems.find(i => i.id === scheduleFormItemId)?.name || 'selected item'}</strong>
                     will be toggled
                   </p>
                 </div>
