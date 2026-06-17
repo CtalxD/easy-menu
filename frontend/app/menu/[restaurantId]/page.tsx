@@ -519,10 +519,24 @@ export default function PublicMenuPage() {
                             </span>
                           </div>
                           
-                          <div className="menu-item-desc-row">
-                            {item.description && (
-                              <p className="menu-item-desc">{item.description}</p>
-                            )}
+                          <div className="menu-item-content-row">
+                            <div className="menu-item-info">
+                              {item.description && (
+                                <p className="menu-item-desc">{item.description}</p>
+                              )}
+                              {item.popular && (
+                                <div className="menu-item-tags">
+                                  <span className="menu-tag popular">
+                                    <Flame size={10} />
+                                    Most Popular
+                                  </span>
+                                  <span className="menu-tag special">
+                                    <Award size={10} />
+                                    Customer Favorite
+                                  </span>
+                                </div>
+                              )}
+                            </div>
                             {item.image && (
                               <button
                                 className="menu-item-view-btn"
@@ -539,19 +553,6 @@ export default function PublicMenuPage() {
                               </button>
                             )}
                           </div>
-                          
-                          {item.popular && (
-                            <div className="menu-item-tags">
-                              <span className="menu-tag popular">
-                                <Flame size={10} />
-                                Most Popular
-                              </span>
-                              <span className="menu-tag special">
-                                <Award size={10} />
-                                Customer Favorite
-                              </span>
-                            </div>
-                          )}
                         </div>
                       </div>
                     ))}
